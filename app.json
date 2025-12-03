@@ -24,7 +24,15 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
+    },
+    "scheme": "connevia",
+    "extra": {
+      "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-ry4tgo51va623cn8.eu.auth0.com",
+      "EXPO_PUBLIC_AUTH0_CLIENT_ID": "1OB04BvCaMTJoASnjVQgOp98lyVpSF5T",
+      "EXPO_PUBLIC_AUTH0_AUDIENCE": "https://api.connevia",
+      "EXPO_PUBLIC_API_URL": "https://connevia.onrender.com"
     }
   }
 }
