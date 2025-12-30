@@ -1,4 +1,5 @@
 import * as React from "react";
+// Role: Local Auth0 login state machine (handles browser flow, token exchange, and /v1/auth/me for Login screen).
 import * as AuthSession from "expo-auth-session";
 import { ENV } from "../config/env";
 import { setAccessToken, getAccessToken, api } from "../api";
@@ -36,13 +37,8 @@ export function useAuth(): UseAuthResult {
     error: null,
   });
 
-  // 1) Load any existing token from SecureStore on first mount
-  React.useEffect(() => {
-    void (async () => {
-      const token = await getAccessToken();
-      setState((prev) => ({ ...prev, accessToken: token }));
-    })();
-  }, []);
+  // Note: Token restoration on app startup is now handled by RootNavigator bootstrap logic
+  // This hook only manages Auth0 login flow and local state for the Login screen
 
   // 2) Discover Auth0 endpoints (authorize, token, etc.)
   const discovery = AuthSession.useAutoDiscovery(`https://${ENV.AUTH0_DOMAIN}`);
@@ -108,7 +104,22 @@ export function useAuth(): UseAuthResult {
 
         await setAccessToken(access);
 
-        setState({ accessToken: access,user : null, isLoading: false, error: null });
+        // Automatically fetch user from /v1/auth/me after getting token
+        if (access) {
+          try {
+            const res = await api.get("/v1/auth/me");
+            const { user } = res.data as { user: User };
+            console.log("User fetched from /v1/auth/me:", user);
+            setState({ accessToken: access, user, isLoading: false, error: null });
+          } catch (meError: unknown) {
+            const meMessage = meError instanceof Error ? meError.message : "Error fetching user from /v1/me";
+            console.error("Failed to fetch user:", meMessage);
+            // Still set token but without user
+            setState({ accessToken: access, user: null, isLoading: false, error: meMessage });
+          }
+        } else {
+          setState({ accessToken: access, user: null, isLoading: false, error: null });
+        }
       } catch (e: unknown) {
         const message =
           e instanceof Error ? e.message : "Unknown error during token exchange";
@@ -142,7 +153,7 @@ export function useAuth(): UseAuthResult {
     try {
 
       setState((prev) => ({ ...prev, isLoading: true }));
-      const res = await api.get("/v1/me");
+      const res = await api.get("/v1/auth/me");
       const { user } = res.data as {user: User};
       console.log("Me",user);
       setState((prev) => ({ ...prev, user:user,isLoading: false, error: null }));

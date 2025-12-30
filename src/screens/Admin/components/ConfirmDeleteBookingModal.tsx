@@ -1,0 +1,104 @@
+// src/screens/Admin/components/ConfirmDeleteBookingModal.tsx
+// Role: Destructive confirmation modal for deleting a booking
+import React from 'react';
+import { View, Text, Modal, Pressable } from 'react-native';
+import { Trash2, X } from 'lucide-react-native';
+
+interface ConfirmDeleteBookingModalProps {
+  visible: boolean;
+  customerName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+export const ConfirmDeleteBookingModal: React.FC<ConfirmDeleteBookingModalProps> = ({
+  visible,
+  customerName,
+  onClose,
+  onConfirm,
+}) => {
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: 20,
+            padding: 24,
+            width: '100%',
+            maxWidth: 340,
+          }}
+        >
+          {/* Icon */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <View
+              style={{
+                backgroundColor: '#fef2f2',
+                borderRadius: 50,
+                padding: 16,
+              }}
+            >
+              <Trash2 size={32} color="#dc2626" />
+            </View>
+          </View>
+
+          {/* Title */}
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#1f2937', textAlign: 'center', marginBottom: 8 }}>
+            حذف الحجز
+          </Text>
+
+          {/* Message */}
+          <Text style={{ fontSize: 15, color: '#6b7280', textAlign: 'center', marginBottom: 8, lineHeight: 22 }}>
+            هل أنتِ متأكدة من حذف حجز
+          </Text>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#1f2937', textAlign: 'center', marginBottom: 24 }}>
+            "{customerName}"؟
+          </Text>
+
+          <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginBottom: 24 }}>
+            لا يمكن التراجع عن هذا الإجراء
+          </Text>
+
+          {/* Actions */}
+          <Pressable
+            onPress={onConfirm}
+            style={{
+              backgroundColor: '#dc2626',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#ffffff' }}>
+              نعم، حذف الحجز
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onClose}
+            style={{
+              backgroundColor: '#f3f4f6',
+              borderRadius: 12,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#6b7280' }}>
+              تراجع
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+export default ConfirmDeleteBookingModal;
