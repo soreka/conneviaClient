@@ -68,8 +68,8 @@ export const ProfileScreen = () => {
                 {user?.email || 'مستخدم'}
               </Text>
               <View className="flex-row items-center mt-1">
-                <Text className="text-sm text-muted-foreground capitalize">
-                  {user?.role || 'consumer'}
+                <Text className="text-sm text-muted-foreground">
+                  {user?.role === 'admin' ? 'مديرة' : 'مستخدمة'}
                 </Text>
               </View>
             </View>

@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { ArrowRight, Mail, Lock } from "lucide-react-native";
-import { AppButton } from "../../components/UI/AppButton";
+import { Button } from "../../components/UI/Button";
 import { AppInput } from "../../components/UI/AppInput";
 import {
-  AppCard,
-  AppCardHeader,
-  AppCardTitle,
-  AppCardDescription,
-  AppCardContent,
-} from "../../components/UI/AppCard";
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "../../components/UI/Card";
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -64,16 +64,16 @@ const LoginScreen = () => {
 
         {/* Login Form */}
          <View className="flex-1 items-center justify-center">
-          <AppCard className="w-full max-w-md shadow-xl border-0 elevation-5">
-            <AppCardHeader className="gap-1 pb-4">
-              <AppCardTitle className="text-2xl text-center">
+          <Card className="w-full max-w-md shadow-xl border-0 elevation-5">
+            <CardHeader className="gap-1 pb-4">
+              <CardTitle className="text-2xl text-center">
                 مرحباً بعودتك
-              </AppCardTitle>
-              <AppCardDescription className="text-center">
+              </CardTitle>
+              <CardDescription className="text-center">
                 سجلي الدخول لمتابعة حجوزاتك واشتراكك
-              </AppCardDescription>
-            </AppCardHeader>
-            <AppCardContent>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <View className="gap-4">
                 {/* Email */}
                  <View className="gap-2">
@@ -83,7 +83,7 @@ const LoginScreen = () => {
                       <Mail size={20} color="#9ca3af" />
                     </View>
                     <AppInput
-                      placeholder="example@email.com"
+                      placeholder="البريد@مثال.com"
                       value={email}
                       onChangeText={setEmail}
                       className="pr-10 h-12"
@@ -121,16 +121,14 @@ const LoginScreen = () => {
                 </View> 
 
                 {/* Submit Button */}
-                 <AppButton
+                 <Button
                   onPress={handleLogin}
                   className="w-full h-12"
-                  isLoading={isLoading}
+                  loading={isLoading}
                   disabled={isLoading}
                 >
-                  <Text className="text-lg text-white font-medium">
-                    {isLoading ? "جاري التحميل..." : "تسجيل الدخول"}
-                  </Text>
-                </AppButton> 
+                  {isLoading ? "جاري التحميل..." : "تسجيل الدخول"}
+                </Button> 
 
                 {/* Register Link */}
                  <View className="flex-row items-center justify-center">
@@ -144,8 +142,8 @@ const LoginScreen = () => {
                   </TouchableOpacity>
                 </View>
               </View> 
-          </AppCardContent> 
-           </AppCard> 
+          </CardContent> 
+           </Card> 
         </View>
       </ScrollView>
     </SafeAreaView>

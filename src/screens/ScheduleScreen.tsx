@@ -81,7 +81,7 @@ export const ScheduleScreen = () => {
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('ar-SA', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -90,7 +90,7 @@ export const ScheduleScreen = () => {
 
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString('ar-SA', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
@@ -108,7 +108,7 @@ export const ScheduleScreen = () => {
   if (error) {
     return (
       <View className="flex-1 justify-center items-center bg-white p-4">
-        <Text className="text-red-500 text-center">Failed to load sessions</Text>
+        <Text className="text-red-500 text-center">فشل في تحميل الحصص</Text>
       </View>
     );
   }
@@ -146,11 +146,11 @@ export const ScheduleScreen = () => {
                 <Text className="text-gray-600">
                   {formatDate(item.startsAt)} • {formatTime(item.startsAt)}
                 </Text>
-                <Text className="text-gray-500 ml-2">({item.durationMin} min)</Text>
+                <Text className="text-gray-500 ml-2">({item.durationMin} دقيقة)</Text>
               </View>
 
               {item.instructorName && (
-                <Text className="text-gray-700 mb-1">Instructor: {item.instructorName}</Text>
+                <Text className="text-gray-700 mb-1">المدربة: {item.instructorName}</Text>
               )}
               
               {item.locationName && (
@@ -168,18 +168,18 @@ export const ScheduleScreen = () => {
                       isFull ? 'text-red-700' : 'text-green-700'
                     }`}
                   >
-                    {isFull ? 'Full' : `${item.availableSeats} spots left`}
+                    {isFull ? 'مكتمل' : `${item.availableSeats} أماكن متاحة`}
                   </Text>
                 </View>
                 
-                <Text className="text-violet-600 font-semibold">View Details →</Text>
+                <Text className="text-violet-600 font-semibold">عرض التفاصيل ←</Text>
               </View>
             </Pressable>
           );
         }}
         ListEmptyComponent={
           <View className="py-8">
-            <Text className="text-center text-gray-500">No sessions available</Text>
+            <Text className="text-center text-gray-500">لا توجد حصص متاحة</Text>
           </View>
         }
       />

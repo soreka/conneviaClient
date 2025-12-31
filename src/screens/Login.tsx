@@ -62,8 +62,8 @@ const Login = () => {
                   {accessToken ? (
         <>
                   {user && 
-                  <Text className="mt-2">
-                    Logged In as {user.email ?? user.id} ({user.role})
+                  <Text className="mt-2 text-right">
+                    تم تسجيل الدخول كـ {user.email ?? user.id} ({user.role === 'admin' ? 'مديرة' : 'مستخدمة'})
                   </Text>
                   }
 
@@ -71,7 +71,7 @@ const Login = () => {
             onPress={() => void handleLogout()}
             className="bg-gray-800 rounded-xl px-4 py-3"
           >
-            <Text className="text-white font-semibold">Logout</Text>
+            <Text className="text-white font-semibold">تسجيل الخروج</Text>
           </Pressable>
         </>
       ) : (
@@ -80,7 +80,7 @@ const Login = () => {
           className="bg-primary-600 rounded-xl px-4 py-3"
         >
           <Text className="text-white font-semibold text-center">
-            Login with Auth0
+            تسجيل الدخول
           </Text>
         </Pressable>
       )}
