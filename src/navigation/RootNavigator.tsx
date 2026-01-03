@@ -10,11 +10,20 @@ import { decodeAccessToken } from '../utils/tokenUtils';
 import { TabNavigator } from './TabNavigator';
 import { AdminTabNavigator } from './AdminTabNavigator';
 import Login from '../screens/Login';
+import CompleteProfileWizard from '../screens/CompleteProfileWizard';
+import { useGetMeQuery } from '../features/api/apiSlice';
+
+const LoadingScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+    <ActivityIndicator size="large" />
+  </View>
+);
 
 const TOKEN_KEY = 'connevia.access_token';
 
 export type RootStackParamList = {
   Login: undefined;
+  CompleteProfileWizard: undefined;
   CustomerTabs: undefined;
   AdminTabs: undefined;
 };
@@ -26,6 +35,17 @@ export const RootNavigator = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const isRestoring = useAppSelector(selectIsRestoring);
   const role = useAppSelector(selectRole);
+
+  // Fetch DB profile (only when authenticated)
+  const { data: meData, isLoading: isMeLoading } = useGetMeQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const needsProfileCompletion =
+    isAuthenticated &&
+    role !== 'admin' &&
+    meData?.user &&
+    meData.user.profileCompleted === false;
 
   // Bootstrap: Restore session from SecureStore on app startup
   useEffect(() => {
@@ -96,6 +116,10 @@ export const RootNavigator = () => {
         <Stack.Screen name="Login" component={Login} />
       ) : role === 'admin' ? (
         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
+      ) : isMeLoading ? (
+        <Stack.Screen name="CustomerTabs" component={LoadingScreen} />
+      ) : needsProfileCompletion ? (
+        <Stack.Screen name="CompleteProfileWizard" component={CompleteProfileWizard} />
       ) : (
         <Stack.Screen name="CustomerTabs" component={TabNavigator} />
       )}

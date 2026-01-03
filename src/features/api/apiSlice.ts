@@ -20,7 +20,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Sessions', 'MyReservations', 'Schedule', 'Reservations', 'Subscriptions', 'User', 'AdminSessions', 'SubscriptionPlans', 'MySubscription', 'MyUsage', 'PaymentSubmissions', 'AdminPaymentSubmissions', 'AdminScheduleSettings'],
+  tagTypes: ['Sessions', 'MyReservations', 'Schedule', 'Reservations', 'Subscriptions', 'User', 'Me', 'AdminSessions', 'SubscriptionPlans', 'MySubscription', 'MyUsage', 'PaymentSubmissions', 'AdminPaymentSubmissions', 'AdminScheduleSettings'],
   endpoints: (builder) => ({
     // Sessions endpoints
     getSessions: builder.query<
@@ -121,6 +121,86 @@ export const apiSlice = createApi({
         method: 'POST',
       }),
       invalidatesTags: ['Sessions', 'MyReservations'],
+    }),
+
+    // ============================================
+    // ME (Profile)
+    // ============================================
+    getMe: builder.query<
+      {
+        ok: boolean;
+        user: {
+          id: string;
+          auth0Id: string;
+          email: string;
+          firstName?: string;
+          lastName?: string;
+          fullName: string;
+          phone?: string;
+          age?: number;
+          weight?: number;
+          healthCondition?: string;
+          healthFileUrl?: string;
+          role: 'customer' | 'admin';
+          profileCompleted: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+      },
+      void
+    >({
+      query: () => '/me',
+      providesTags: ['Me'],
+    }),
+
+    patchMe: builder.mutation<
+      {
+        ok: boolean;
+        user: {
+          id: string;
+          auth0Id: string;
+          email: string;
+          firstName?: string;
+          lastName?: string;
+          fullName: string;
+          phone?: string;
+          age?: number;
+          weight?: number;
+          healthCondition?: string;
+          healthFileUrl?: string;
+          role: 'customer' | 'admin';
+          profileCompleted: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+      },
+      {
+        firstName: string;
+        lastName: string;
+        phone: string;
+        age: number;
+        weight: number;
+        healthCondition: string;
+        healthFileUrl?: string;
+      }
+    >({
+      query: (body) => ({
+        url: '/me',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Me'],
+    }),
+
+    uploadHealthFile: builder.mutation<
+      { ok: boolean; healthFileUrl: string; filename: string; size: number; mimeType: string },
+      { fileData: string }
+    >({
+      query: (body) => ({
+        url: '/uploads/health-file',
+        method: 'POST',
+        body,
+      }),
     }),
 
     // ============================================
@@ -532,6 +612,7 @@ export const apiSlice = createApi({
       {
         durationMinutes: number;
         dayOfWeeks: number[];
+        capacity?: number;
         range?: {
           startDate?: string;
           weeks?: number;
@@ -556,6 +637,10 @@ export const {
   useCreateReservationMutation,
   useGetMyReservationsQuery,
   useCancelReservationMutation,
+  // Me (Profile) hooks
+  useGetMeQuery,
+  usePatchMeMutation,
+  useUploadHealthFileMutation,
   // Subscription hooks
   useGetSubscriptionPlansQuery,
   useGetMySubscriptionQuery,

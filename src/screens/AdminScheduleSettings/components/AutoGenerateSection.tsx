@@ -1,15 +1,18 @@
 // src/screens/AdminScheduleSettings/components/AutoGenerateSection.tsx
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
-import { Zap, CheckCircle, Calendar, Lock } from 'lucide-react-native';
+import { Zap, CheckCircle, Calendar, Lock, Users } from 'lucide-react-native';
 import { Checkbox } from '../../../components/UI/Checkbox';
 import { DaySettings, ARABIC_DAY_NAMES, DURATION_PRESETS } from '../../../types/scheduleSettings';
 
 type WeekOption = 'current' | 'next';
 
+// Bed count presets
+const BED_COUNT_PRESETS = [2, 3, 4, 5, 6, 8];
+
 interface AutoGenerateSectionProps {
   days: DaySettings[];
-  onGenerate: (durationMinutes: number, selectedDays: number[], startDate?: string) => Promise<void>;
+  onGenerate: (durationMinutes: number, selectedDays: number[], startDate?: string, capacity?: number) => Promise<void>;
   generating?: boolean;
 }
 
@@ -39,6 +42,7 @@ export const AutoGenerateSection: React.FC<AutoGenerateSectionProps> = ({
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [weekOption, setWeekOption] = useState<WeekOption>('current');
+  const [bedCount, setBedCount] = useState(4);
 
   const enabledDays = days.filter((d) => d.enabled && d.workPeriods.length > 0);
 
@@ -134,7 +138,7 @@ export const AutoGenerateSection: React.FC<AutoGenerateSectionProps> = ({
 
     // Calculate startDate based on week option
     const startDate = weekOption === 'next' ? formatDate(getNextWeekStart()) : undefined;
-    await onGenerate(duration, selectedDays, startDate);
+    await onGenerate(duration, selectedDays, startDate, bedCount);
   };
 
   const isCustom = selectedDuration === 0;
@@ -248,6 +252,34 @@ export const AutoGenerateSection: React.FC<AutoGenerateSectionProps> = ({
           )}
         </View>
       )}
+
+      {/* Bed count selection */}
+      <View className="flex-row items-center justify-end mb-2">
+        <Text className="text-sm font-semibold text-gray-700">عدد الأسرّة</Text>
+        <Users size={16} color="#6B7280" style={{ marginLeft: 6 }} />
+      </View>
+      <View className="flex-row flex-wrap gap-2 mb-4">
+        {BED_COUNT_PRESETS.map((count) => (
+          <TouchableOpacity
+            key={count}
+            onPress={() => setBedCount(count)}
+            className={`px-4 py-2 rounded-lg ${
+              bedCount === count
+                ? 'bg-purple-600'
+                : 'bg-gray-100'
+            }`}
+            activeOpacity={0.7}
+          >
+            <Text
+              className={`font-medium ${
+                bedCount === count ? 'text-white' : 'text-gray-700'
+              }`}
+            >
+              {count}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* Day selection */}
       <View className="flex-row items-center justify-between mb-2">

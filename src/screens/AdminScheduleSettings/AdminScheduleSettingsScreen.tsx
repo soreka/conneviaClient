@@ -150,11 +150,12 @@ export const AdminScheduleSettingsScreen = () => {
   };
 
   // Generate sessions
-  const handleGenerate = async (durationMinutes: number, selectedDays: number[], startDate?: string) => {
+  const handleGenerate = async (durationMinutes: number, selectedDays: number[], startDate?: string, capacity?: number) => {
     try {
       const result = await generateSessions({
         durationMinutes,
         dayOfWeeks: selectedDays,
+        capacity: capacity || 4,
         range: { 
           weeks: 1,
           ...(startDate && { startDate }),

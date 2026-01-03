@@ -26,6 +26,7 @@ export interface UpdateSettingsRequest {
 export interface GenerateSessionsRequest {
   durationMinutes: number;
   dayOfWeeks: number[];
+  capacity?: number; // Number of beds (1-12), default 4
   range?: {
     startDate?: string; // YYYY-MM-DD
     weeks?: number;
