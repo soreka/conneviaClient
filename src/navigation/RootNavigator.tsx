@@ -41,50 +41,37 @@ export const RootNavigator = () => {
     skip: !isAuthenticated,
   });
 
-  const needsProfileCompletion =
-    isAuthenticated &&
-    role !== 'admin' &&
-    meData?.user &&
-    meData.user.profileCompleted === false;
-
-  // Bootstrap: Restore session from SecureStore on app startup
+  // Bootstrap auth from SecureStore on app startup
   useEffect(() => {
     const bootstrapAuth = async () => {
       try {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         
         if (token) {
-          // Decode token client-side to extract role
           const decoded = decodeAccessToken(token);
           
           if (decoded) {
-            // Check if token is expired
             if (decoded.isExpired) {
-              if (__DEV__) {
-                console.log('[Auth] Stored token is expired, logging out');
-              }
+              if (__DEV__) console.log('[Auth] Stored token expired, clearing');
               await SecureStore.deleteItemAsync(TOKEN_KEY);
               dispatch(logout());
               return;
             }
             
-            // Build user object from decoded token
             const user = {
               id: decoded.userId,
               email: decoded.email,
               role: decoded.role,
             };
             
-            // Dispatch to Redux with token, user, and role
+            if (__DEV__) console.log('[Auth] Session restored', { role: decoded.role });
             dispatch(restoreSession({ token, user, role: decoded.role }));
           } else {
-            // Token decode failed, clear and finish
             console.error('[Auth] Failed to decode stored token');
             await SecureStore.deleteItemAsync(TOKEN_KEY);
             dispatch(finishRestoring());
           }
         } else {
-          // No token found, finish restoring
           dispatch(finishRestoring());
         }
       } catch (error) {
@@ -96,6 +83,12 @@ export const RootNavigator = () => {
     void bootstrapAuth();
   }, [dispatch]);
 
+  const needsProfileCompletion =
+    isAuthenticated &&
+    role !== 'admin' &&
+    meData?.user &&
+    meData.user.profileCompleted === false;
+
   // Show splash screen while restoring session
   if (isRestoring) {
     return (
@@ -105,13 +98,9 @@ export const RootNavigator = () => {
     );
   }
 
-  // Once restored, show appropriate screen based on auth state and role
+  // Route based on auth state and role
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
         <Stack.Screen name="Login" component={Login} />
       ) : role === 'admin' ? (

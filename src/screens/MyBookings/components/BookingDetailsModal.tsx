@@ -59,7 +59,7 @@ interface BookingDetailsModalProps {
   visible: boolean;
   booking: BookingDetails | null;
   onClose: () => void;
-  onCancelPress: () => void;
+  onCancelPress: (reservationId: string) => void;
 }
 
 const DetailRow: React.FC<{
@@ -185,7 +185,7 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
           {/* Cancel Button - Only for upcoming bookings */}
           {booking.isUpcoming && (
             <Pressable
-              onPress={booking.canCancel ? onCancelPress : undefined}
+              onPress={booking.canCancel ? () => onCancelPress(booking.reservationId) : undefined}
               disabled={!booking.canCancel}
               className={`py-4 rounded-xl items-center ${
                 booking.canCancel 

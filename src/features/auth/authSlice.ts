@@ -10,7 +10,7 @@ const TOKEN_KEY = 'connevia.access_token';
 export interface User {
   id: string;
   email?: string;
-  role: 'consumer' | 'business' | 'admin';
+  role: 'admin' | 'customer';
 }
 
 interface AuthState {

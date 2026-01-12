@@ -12,8 +12,14 @@ export async function getAccessToken(): Promise<string | null> {
 export async function setAccessToken(token: string | null): Promise<void> {
   if (token) {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
+    if (__DEV__) {
+      console.log('[Auth] SAVED token to SecureStore, key=', TOKEN_KEY, 'success=true');
+    }
   } else {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
+    if (__DEV__) {
+      console.log('[Auth] DELETED token from SecureStore, key=', TOKEN_KEY);
+    }
   }
 }
 

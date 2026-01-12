@@ -1,26 +1,79 @@
 // src/features/api/apiSlice.ts
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi, fetchBaseQuery, BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import * as SecureStore from 'expo-secure-store';
 import { ENV } from '../../config/env';
 import { SessionCore } from '../../types/scheduleCore';
 import { AdminSessionDetails, BookingDetails } from '../../types/adminSchedule';
 import { mapApiToSessionCore, mapApiSessionsToCore, mapApiToAdminSessionDetails } from '../../mappers/scheduleMappers';
+import { logout } from '../auth/authSlice';
+import { resetToLogin } from '../../navigation/navigationRef';
 
 const TOKEN_KEY = 'connevia.access_token';
 
+// Flag to prevent multiple 401 logout triggers
+let isLoggingOut = false;
+
+// Base query with token injection
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: ENV.API_URL + '/v1',
+  prepareHeaders: async (headers) => {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return headers;
+  },
+});
+
+// Wrapper that handles 401 responses
+const baseQueryWith401Handler: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
+  args,
+  api,
+  extraOptions
+) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+
+  // Check for 401 Unauthorized
+  if (result.error && result.error.status === 401) {
+    if (!isLoggingOut) {
+      isLoggingOut = true;
+
+      if (__DEV__) {
+        console.log('[API] 401 Unauthorized - BEFORE dispatch(logout)');
+      }
+
+      // Dispatch logout to clear auth state
+      api.dispatch(logout());
+
+      if (__DEV__) {
+        console.log('[API] 401 - AFTER dispatch(logout), calling resetToLogin');
+      }
+
+      // Reset navigation to Login (safe, checks isReady internally)
+      resetToLogin();
+
+      if (__DEV__) {
+        console.log('[API] 401 - AFTER resetToLogin');
+      }
+
+      // Reset flag after a short delay to allow re-attempts after re-login
+      setTimeout(() => {
+        isLoggingOut = false;
+      }, 2000);
+    } else {
+      if (__DEV__) {
+        console.log('[API] 401 - SKIPPED (isLoggingOut=true)');
+      }
+    }
+  }
+
+  return result;
+};
+
 export const apiSlice = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: ENV.API_URL + '/v1',
-    prepareHeaders: async (headers) => {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
-  tagTypes: ['Sessions', 'MyReservations', 'Schedule', 'Reservations', 'Subscriptions', 'User', 'Me', 'AdminSessions', 'SubscriptionPlans', 'MySubscription', 'MyUsage', 'PaymentSubmissions', 'AdminPaymentSubmissions', 'AdminScheduleSettings'],
+  baseQuery: baseQueryWith401Handler,
+  tagTypes: ['Sessions', 'MyReservations', 'Schedule', 'Reservations', 'Subscriptions', 'User', 'Me', 'AdminSessions', 'SubscriptionPlans', 'MySubscription', 'MyUsage', 'PaymentSubmissions', 'AdminPaymentSubmissions', 'AdminScheduleSettings', 'AdminCustomers', 'AdminCustomer'],
   endpoints: (builder) => ({
     // Sessions endpoints
     getSessions: builder.query<
@@ -126,6 +179,8 @@ export const apiSlice = createApi({
     // ============================================
     // ME (Profile)
     // ============================================
+    
+    // New response type with nested health object
     getMe: builder.query<
       {
         ok: boolean;
@@ -137,9 +192,11 @@ export const apiSlice = createApi({
           lastName?: string;
           fullName: string;
           phone?: string;
-          age?: number;
-          weight?: number;
-          healthCondition?: string;
+          health: {
+            age?: number;
+            weight?: number;
+            healthStatus?: string;
+          };
           healthFileUrl?: string;
           role: 'customer' | 'admin';
           profileCompleted: boolean;
@@ -153,25 +210,90 @@ export const apiSlice = createApi({
       providesTags: ['Me'],
     }),
 
+    // PATCH /v1/me - Update personal info only (firstName, lastName, phone)
     patchMe: builder.mutation<
       {
         ok: boolean;
         user: {
           id: string;
-          auth0Id: string;
           email: string;
           firstName?: string;
           lastName?: string;
           fullName: string;
           phone?: string;
-          age?: number;
-          weight?: number;
-          healthCondition?: string;
-          healthFileUrl?: string;
-          role: 'customer' | 'admin';
+          health: {
+            age?: number;
+            weight?: number;
+            healthStatus?: string;
+          };
           profileCompleted: boolean;
-          createdAt: string;
-          updatedAt: string;
+        };
+      },
+      {
+        firstName: string;
+        lastName: string;
+        phone: string;
+      }
+    >({
+      query: (body) => ({
+        url: '/me',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Me'],
+    }),
+
+    // PATCH /v1/me/health - Update health info only (age, weight, healthStatus)
+    patchMyHealth: builder.mutation<
+      {
+        ok: boolean;
+        user: {
+          id: string;
+          email: string;
+          firstName?: string;
+          lastName?: string;
+          fullName: string;
+          phone?: string;
+          health: {
+            age?: number;
+            weight?: number;
+            healthStatus?: string;
+          };
+          profileCompleted: boolean;
+        };
+      },
+      {
+        age: number;
+        weight: number;
+        healthStatus?: string;
+      }
+    >({
+      query: (body) => ({
+        url: '/me/health',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Me'],
+    }),
+
+    // PATCH /v1/me/full - Legacy endpoint for CompleteProfileWizard
+    patchMeFull: builder.mutation<
+      {
+        ok: boolean;
+        user: {
+          id: string;
+          email: string;
+          firstName?: string;
+          lastName?: string;
+          fullName: string;
+          phone?: string;
+          health: {
+            age?: number;
+            weight?: number;
+            healthStatus?: string;
+          };
+          healthFileUrl?: string;
+          profileCompleted: boolean;
         };
       },
       {
@@ -185,7 +307,7 @@ export const apiSlice = createApi({
       }
     >({
       query: (body) => ({
-        url: '/me',
+        url: '/me/full',
         method: 'PATCH',
         body,
       }),
@@ -627,6 +749,335 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['AdminSessions'],
     }),
+
+    // ============================================
+    // ADMIN CUSTOMERS
+    // ============================================
+
+    // GET /v1/admin/customers - List customers with filters
+    adminGetCustomers: builder.query<
+      {
+        ok: boolean;
+        items: Array<{
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          phone: string | null;
+          email: string;
+          health: {
+            age: number | null;
+            weight: number | null;
+            healthStatus: string | null;
+          };
+          subscription: {
+            status: string;
+            planName: string | null;
+            endDate: string | null;
+          } | null;
+          usage: {
+            monthlyUsed: number;
+            monthlyLimit: number;
+            weeklyUsed: number;
+            weeklyLimit: number;
+            lifetime: number;
+          };
+        }>;
+        page: number;
+        limit: number;
+        total: number;
+      },
+      {
+        q?: string;
+        status?: 'all' | 'active' | 'expiring' | 'expired' | 'no-subscription';
+        activeOnly?: 'true' | 'false';
+        page?: number;
+        limit?: number;
+      }
+    >({
+      query: (params) => ({
+        url: '/admin/customers',
+        params,
+      }),
+      providesTags: ['AdminCustomers'],
+    }),
+
+    // GET /v1/admin/customers/:customerId - Get customer details
+    adminGetCustomerDetails: builder.query<
+      {
+        ok: boolean;
+        id: string;
+        personal: {
+          firstName: string | null;
+          lastName: string | null;
+          phone: string | null;
+          email: string;
+        };
+        health: {
+          age: number | null;
+          weight: number | null;
+          healthStatus: string | null;
+        };
+        subscription: {
+          status: string;
+          planId: string;
+          planName: string | null;
+          startDate: string;
+          endDate: string;
+        } | null;
+        usage: {
+          monthlyUsed: number;
+          monthlyLimit: number;
+          monthlyLeft: number;
+          weeklyUsed: number;
+          weeklyLimit: number;
+          weeklyLeft: number;
+          lifetime: number;
+        };
+        reservations: {
+          items: Array<{
+            id: string;
+            startAt: string | null;
+            status: string;
+            coachName: string | null;
+          }>;
+          total: number;
+        };
+        notes: {
+          adminNotes: string | null;
+        };
+      },
+      string
+    >({
+      query: (customerId) => `/admin/customers/${customerId}`,
+      providesTags: (_result, _error, customerId) => [
+        { type: 'AdminCustomer', id: customerId },
+      ],
+    }),
+
+    // PATCH /v1/admin/customers/:customerId/personal
+    adminPatchCustomerPersonal: builder.mutation<
+      {
+        ok: boolean;
+        personal: {
+          firstName: string | null;
+          lastName: string | null;
+          phone: string | null;
+          email: string;
+        };
+      },
+      {
+        customerId: string;
+        firstName?: string;
+        lastName?: string;
+        phone?: string;
+      }
+    >({
+      query: ({ customerId, ...body }) => ({
+        url: `/admin/customers/${customerId}/personal`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { customerId }) => [
+        { type: 'AdminCustomer', id: customerId },
+        'AdminCustomers',
+      ],
+    }),
+
+    // PATCH /v1/admin/customers/:customerId/health
+    adminPatchCustomerHealth: builder.mutation<
+      {
+        ok: boolean;
+        health: {
+          age: number | null;
+          weight: number | null;
+          healthStatus: string | null;
+        };
+      },
+      {
+        customerId: string;
+        age?: number;
+        weight?: number;
+        healthStatus?: string;
+      }
+    >({
+      query: ({ customerId, ...body }) => ({
+        url: `/admin/customers/${customerId}/health`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { customerId }) => [
+        { type: 'AdminCustomer', id: customerId },
+        'AdminCustomers',
+      ],
+    }),
+
+    // PATCH /v1/admin/customers/:customerId/notes
+    adminPatchCustomerNotes: builder.mutation<
+      {
+        ok: boolean;
+        notes: {
+          adminNotes: string | null;
+        };
+      },
+      {
+        customerId: string;
+        adminNotes?: string;
+      }
+    >({
+      query: ({ customerId, ...body }) => ({
+        url: `/admin/customers/${customerId}/notes`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { customerId }) => [
+        { type: 'AdminCustomer', id: customerId },
+      ],
+    }),
+
+    // PATCH /v1/admin/customers/:customerId/subscription
+    adminPatchCustomerSubscription: builder.mutation<
+      {
+        ok: boolean;
+        subscription: {
+          status: string;
+          planId: string;
+          planName: string | null;
+          startDate: string;
+          endDate: string;
+        };
+      },
+      {
+        customerId: string;
+        status?: string;
+        endDate?: string;
+        planId?: string;
+      }
+    >({
+      query: ({ customerId, ...body }) => ({
+        url: `/admin/customers/${customerId}/subscription`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { customerId }) => [
+        { type: 'AdminCustomer', id: customerId },
+        'AdminCustomers',
+      ],
+    }),
+
+    // ============================================
+    // ADMIN DASHBOARD ENDPOINTS
+    // ============================================
+
+    // GET /v1/admin/dashboard/summary - Dashboard stats
+    adminDashboardSummary: builder.query<
+      {
+        ok: boolean;
+        date: string;
+        stats: {
+          todayBookings: number;
+          weekBookings: number;
+          occupancyRateToday: number;
+          pendingPayments: number;
+          expiringMemberships: number;
+        };
+      },
+      { date: string }
+    >({
+      query: ({ date }) => `/admin/dashboard/summary?date=${date}`,
+    }),
+
+    // GET /v1/admin/dashboard/today-bookings - Today's bookings list
+    adminTodayBookings: builder.query<
+      {
+        ok: boolean;
+        date: string;
+        bookings: Array<{
+          id: string;
+          customerId: string | null;
+          customerName: string;
+          sessionType: string;
+          startTime: string;
+          endTime: string;
+          bedNumber: number;
+          attendance: 'unknown' | 'attended' | 'absent';
+        }>;
+      },
+      { date: string }
+    >({
+      query: ({ date }) => `/admin/dashboard/today-bookings?date=${date}`,
+    }),
+
+    // GET /v1/admin/dashboard/notifications - Recent notifications
+    adminNotifications: builder.query<
+      {
+        ok: boolean;
+        notifications: Array<{
+          id: string;
+          type: 'booking_created' | 'booking_cancelled' | 'payment_pending' | 'membership_expiring';
+          textAr: string;
+          createdAt: string;
+        }>;
+      },
+      { limit?: number }
+    >({
+      query: ({ limit }) => `/admin/dashboard/notifications?limit=${limit || 20}`,
+    }),
+
+    // PATCH /v1/admin/dashboard/bookings/:id/attendance - Update attendance
+    updateBookingAttendance: builder.mutation<
+      {
+        ok: boolean;
+        id: string;
+        attendance: 'attended' | 'absent';
+      },
+      { id: string; attendance: 'attended' | 'absent' }
+    >({
+      query: ({ id, attendance }) => ({
+        url: `/admin/dashboard/bookings/${id}/attendance`,
+        method: 'PATCH',
+        body: { attendance },
+      }),
+    }),
+
+    // ============================================
+    // ADMIN CUSTOMER SEARCH & ADD TO SESSION
+    // ============================================
+
+    // GET /v1/admin/customers/search - Search active customers for typeahead
+    adminSearchCustomers: builder.query<
+      {
+        ok: boolean;
+        customers: Array<{
+          id: string;
+          fullName: string;
+          email: string;
+          phone?: string;
+        }>;
+      },
+      { q: string; limit?: number }
+    >({
+      query: ({ q, limit }) => `/admin/customers/search?q=${encodeURIComponent(q)}${limit ? `&limit=${limit}` : ''}`,
+    }),
+
+    // POST /v1/admin/customers/sessions/:sessionId/add-customer - Add customer to session
+    adminAddCustomerToSession: builder.mutation<
+      {
+        ok: boolean;
+        sessionId: string;
+        addedCustomerId: string;
+        reservationId?: string;
+        bedNumber?: number;
+        alreadyBooked?: boolean;
+      },
+      { sessionId: string; customerId: string }
+    >({
+      query: ({ sessionId, customerId }) => ({
+        url: `/admin/customers/sessions/${sessionId}/add-customer`,
+        method: 'POST',
+        body: { customerId },
+      }),
+      invalidatesTags: ['AdminSessions', 'Sessions'],
+    }),
   }),
 });
 
@@ -640,6 +1091,8 @@ export const {
   // Me (Profile) hooks
   useGetMeQuery,
   usePatchMeMutation,
+  usePatchMyHealthMutation,
+  usePatchMeFullMutation,
   useUploadHealthFileMutation,
   // Subscription hooks
   useGetSubscriptionPlansQuery,
@@ -664,4 +1117,19 @@ export const {
   useGetAdminScheduleSettingsQuery,
   useUpdateAdminScheduleSettingsMutation,
   useGenerateAdminSessionsMutation,
+  // Admin customers hooks
+  useAdminGetCustomersQuery,
+  useAdminGetCustomerDetailsQuery,
+  useAdminPatchCustomerPersonalMutation,
+  useAdminPatchCustomerHealthMutation,
+  useAdminPatchCustomerNotesMutation,
+  useAdminPatchCustomerSubscriptionMutation,
+  // Admin dashboard hooks
+  useAdminDashboardSummaryQuery,
+  useAdminTodayBookingsQuery,
+  useAdminNotificationsQuery,
+  useUpdateBookingAttendanceMutation,
+  // Admin customer search & add hooks
+  useLazyAdminSearchCustomersQuery,
+  useAdminAddCustomerToSessionMutation,
 } = apiSlice;

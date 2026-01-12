@@ -223,25 +223,35 @@ export const MyBookingsScreen = () => {
   };
 
   // Handle cancel button press in details modal
-  const handleCancelPress = () => {
+  const handleCancelPress = (reservationId: string) => {
+    console.log('[Cancel] pressed reservationId=', reservationId);
     setCancelModalVisible(true);
+  };
+
+  // Handle cancel reservation
+  const handleCancel = async (reservationId: string) => {
+    console.log('[Cancel] mutation starting for reservationId=', reservationId);
+    
+    try {
+      await cancelReservation({ reservationId }).unwrap();
+      console.log('[Cancel] mutation success');
+      setCancelModalVisible(false);
+      setDetailsModalVisible(false);
+      setSelectedBooking(null);
+      console.log('[Cancel] refetch triggered');
+      await asyncGuardedRefetch();
+      Alert.alert('تم الإلغاء', 'تم إلغاء حجزك بنجاح');
+    } catch (err: any) {
+      console.log('[Cancel] mutation failed', err);
+      const errorMessage = err?.data?.error || 'فشل إلغاء الحجز';
+      Alert.alert('خطأ', errorMessage);
+    }
   };
 
   // Handle cancel confirmation
   const handleConfirmCancel = async () => {
     if (!selectedBooking) return;
-    
-    try {
-      await cancelReservation({ reservationId: selectedBooking.reservationId }).unwrap();
-      setCancelModalVisible(false);
-      setDetailsModalVisible(false);
-      setSelectedBooking(null);
-      await asyncGuardedRefetch();
-      Alert.alert('تم الإلغاء', 'تم إلغاء حجزك بنجاح');
-    } catch (err: any) {
-      const errorMessage = err?.data?.error || 'فشل إلغاء الحجز';
-      Alert.alert('خطأ', errorMessage);
-    }
+    await handleCancel(selectedBooking.reservationId);
   };
 
   // Close modals
@@ -389,7 +399,7 @@ export const MyBookingsScreen = () => {
         visible={detailsModalVisible}
         booking={selectedBooking}
         onClose={handleCloseDetailsModal}
-        onCancelPress={handleCancelPress}
+        onCancelPress={handleCancel}
       />
 
       {/* Cancel Confirmation Modal */}

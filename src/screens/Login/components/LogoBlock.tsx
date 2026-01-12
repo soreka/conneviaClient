@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
 
-const logo = require('../../../assets/3logo.png');
+const logo = require('../../../assets/iconedLogo2.png');
 
 export const LogoBlock: React.FC = () => {
   return (
@@ -11,11 +11,13 @@ export const LogoBlock: React.FC = () => {
         <Image 
           source={logo} 
           
+          
             className="w-48 h-48 "
             resizeMode="cover"
+
         />
       </View>
-      <Text className="text-3xl font-arabic  font-bold text-[#666666] text-center mb-1">
+      <Text className="text-3xl font-san-serif  font-bold text-[#666666] text-center mb-1">
         نادي البيلاتس
       </Text>
       <Text className="text-m text-[#8C8C8C] text-center">

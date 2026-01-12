@@ -753,7 +753,7 @@ export const AdminScheduleScreen = () => {
                   </Text>
                 </Pressable>
 
-                <Pressable
+                <Pressable 
                   onPress={handleAddBooking}
                   style={{
                     borderWidth: 1,
@@ -912,11 +912,29 @@ export const AdminScheduleScreen = () => {
       {/* Add Booking Modal */}
       <AddBookingModal
         visible={addBookingModalVisible}
+        sessionId={selectedSlot?.id || ''}
         sessionTitle={selectedSlot?.title || ''}
         capacity={selectedSlot?.capacity || 0}
         bookedBeds={selectedSlotBookings.map(b => b.bedNumber).filter((n): n is number => n !== undefined)}
         onClose={closeAllModals}
         onAdd={handleAddBookingSubmit}
+        onCustomerAdded={() => {
+          // Reload session details to show new booking
+          if (selectedSlot) {
+            triggerGetDetails(selectedSlot.id)
+              .unwrap()
+              .then((result) => {
+                const bookings: LocalBooking[] = result.session.bookings.map((b) => ({
+                  id: b.id,
+                  customerName: b.customerName,
+                  phone: b.phone || '',
+                  bedNumber: b.bedNumber,
+                }));
+                setSelectedSlotBookings(bookings);
+              });
+          }
+          closeAllModals();
+        }}
       />
 
       {/* Edit Session Modal */}

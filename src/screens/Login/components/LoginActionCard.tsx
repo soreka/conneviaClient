@@ -16,6 +16,7 @@ export const LoginActionCard: React.FC<LoginActionCardProps> = ({
   isLoading = false,
   error,
 }) => {
+
   return (
     <View className="mb-4">
       {/* Welcome text */}

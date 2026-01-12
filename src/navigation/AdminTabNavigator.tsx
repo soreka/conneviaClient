@@ -4,9 +4,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayoutDashboard, Calendar, Users, CreditCard } from 'lucide-react-native';
-import { PlaceholderScreen } from '../components/PlaceholderScreen';
 import { AdminScheduleStackNavigator } from './AdminScheduleStackNavigator';
+import { AdminCustomersStackNavigator } from './AdminCustomersStackNavigator';
 import { AdminPaymentsScreen } from '../screens/Admin/AdminPaymentsScreen';
+import { AdminDashboardScreen } from '../screens/Admin/AdminDashboardScreen';
 
 export type AdminTabParamList = {
   AdminDashboard: undefined;
@@ -17,11 +18,10 @@ export type AdminTabParamList = {
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 
-// Placeholder screens for admin tabs
-const AdminDashboardScreen = () => <PlaceholderScreen title="لوحة التحكم" />;
-const AdminCustomersScreen = () => <PlaceholderScreen title="العملاء" />;
-
 export const AdminTabNavigator = () => {
+  if (__DEV__) {
+    console.log('[AdminTabs] MOUNTED');
+  }
   const insets = useSafeAreaInsets();
   
   // Calculate tab bar height: base height + safe area bottom inset
@@ -56,7 +56,7 @@ export const AdminTabNavigator = () => {
         component={AdminDashboardScreen}
         options={{
           tabBarLabel: 'لوحة التحكم',
-          headerTitle: 'لوحة التحكم',
+          headerShown: false, // Custom header in screen
           tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} />,
         }}
       />
@@ -71,10 +71,10 @@ export const AdminTabNavigator = () => {
       />
       <Tab.Screen
         name="AdminCustomers"
-        component={AdminCustomersScreen}
+        component={AdminCustomersStackNavigator}
         options={{
-          tabBarLabel: 'العملاء',
-          headerTitle: 'العملاء',
+          tabBarLabel: 'الزبونات',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
