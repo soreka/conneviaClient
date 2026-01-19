@@ -1,14 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, Alert, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Phone, Mail, HeartPulse, Paperclip, X, ArrowRight } from 'lucide-react-native';
+import { User, Phone, Mail, HeartPulse, ArrowRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
 import { Screen, Card, Button, Progress } from '../components/UI';
 import { AppInput } from '../components/UI/AppInput';
-import { useGetMeQuery, usePatchMeFullMutation, useUploadHealthFileMutation } from '../features/api/apiSlice';
+import { useGetMeQuery, usePatchMeFullMutation } from '../features/api/apiSlice';
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
 import { resetToLogin } from '../navigation/navigationRef';
@@ -30,7 +30,6 @@ export const CompleteProfileWizard: React.FC = () => {
   const me = meData?.user;
 
   const [patchMeFull, { isLoading: isSaving }] = usePatchMeFullMutation();
-  const [uploadHealthFile, { isLoading: isUploading }] = useUploadHealthFileMutation();
 
   const [step, setStep] = useState<Step>(1);
 
@@ -42,17 +41,14 @@ export const CompleteProfileWizard: React.FC = () => {
   const [weight, setWeight] = useState('');
   const [healthCondition, setHealthCondition] = useState('');
 
-  const [healthFileData, setHealthFileData] = useState<string | null>(null);
-  const [healthFileName, setHealthFileName] = useState<string | null>(null);
-
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // same wizard progress logic
   const progressValue = step === 1 ? 50 : 100;
 
   const canSubmit = useMemo(() => {
-    return !isSaving && !isUploading;
-  }, [isSaving, isUploading]);
+    return !isSaving;
+  }, [isSaving]);
 
   const validateStep1 = useCallback(() => {
     const next: Record<string, string> = {};
@@ -112,33 +108,10 @@ export const CompleteProfileWizard: React.FC = () => {
     ]);
   }, [dispatch, navigation]);
 
-  const handleAttachPress = useCallback(() => {
-    Alert.alert(
-      'إرفاق ملف صحي',
-      'حالياً يمكن إرفاق الملف بصيغة (Base64 data URL). إذا لم يتوفر لديك الآن، يمكنك المتابعة بدون ملف وإرفاقه لاحقاً.',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'حسناً', style: 'default' },
-      ]
-    );
-  }, []);
-
-  const handleRemoveFile = useCallback(() => {
-    setHealthFileData(null);
-    setHealthFileName(null);
-  }, []);
-
   const handleSubmit = useCallback(async () => {
     if (!validateStep2()) return;
 
     try {
-      let healthFileUrl: string | undefined;
-
-      if (healthFileData) {
-        const uploadRes = await uploadHealthFile({ fileData: healthFileData }).unwrap();
-        healthFileUrl = uploadRes.healthFileUrl;
-      }
-
       const res = await patchMeFull({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -146,7 +119,6 @@ export const CompleteProfileWizard: React.FC = () => {
         age: Number(age),
         weight: Number(weight),
         healthCondition: healthCondition.trim(),
-        ...(healthFileUrl && { healthFileUrl }),
       }).unwrap();
 
       if (res.user.profileCompleted) {
@@ -175,7 +147,6 @@ export const CompleteProfileWizard: React.FC = () => {
     }
   }, [
     validateStep2,
-    uploadHealthFile,
     patchMeFull,
     firstName,
     lastName,
@@ -183,8 +154,8 @@ export const CompleteProfileWizard: React.FC = () => {
     age,
     weight,
     healthCondition,
-    healthFileData,
     navigation,
+    refetchMe,
   ]);
 
   // Register-style text
@@ -329,50 +300,6 @@ export const CompleteProfileWizard: React.FC = () => {
                       rightIcon={<HeartPulse size={18} color="#8C8C8C" />}
                     />
 
-                    <View className="gap-2">
-                      <TouchableOpacity
-                        onPress={handleAttachPress}
-                        activeOpacity={0.8}
-                        className="border border-gray-200 rounded-xl py-3 px-4 flex-row-reverse items-center justify-between bg-white"
-                      >
-                        <View className="flex-row-reverse items-center">
-                          <Paperclip size={18} color="#8C8C8C" />
-                          <Text className="text-sm text-[#666666] mr-2">
-                            إرفاق ملف صحي (اختياري)
-                          </Text>
-                        </View>
-                        {isUploading ? (
-                          <ActivityIndicator size="small" color="#A68CD4" />
-                        ) : null}
-                      </TouchableOpacity>
-
-                      <Text className="text-xs text-[#8C8C8C] text-right">
-                        يمكنكِ إرفاق الملف لاحقًا من الملف الشخصي
-                      </Text>
-
-                      <AppInput
-                        label="ملف صحي (Base64) - اختياري"
-                        placeholder="data:application/pdf;base64,..."
-                        value={healthFileData || ''}
-                        onChangeText={(t) => {
-                          setHealthFileData(t || null);
-                          setHealthFileName(t ? 'health-file' : null);
-                        }}
-                        rightIcon={<Paperclip size={18} color="#8C8C8C" />}
-                      />
-
-                      {healthFileName && (
-                        <View className="flex-row-reverse items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                          <Text className="text-sm text-[#666666] text-right flex-1">
-                            {healthFileName}
-                          </Text>
-                          <TouchableOpacity onPress={handleRemoveFile} className="p-1" activeOpacity={0.7}>
-                            <X size={16} color="#8C8C8C" />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-
                     <View className="flex-row gap-2">
                       <View className="flex-1">
                         <Button variant="outline" onPress={handleBack} disabled={!canSubmit}>
@@ -380,7 +307,7 @@ export const CompleteProfileWizard: React.FC = () => {
                         </Button>
                       </View>
                       <View className="flex-1">
-                        <Button onPress={handleSubmit} loading={isSaving || isUploading} disabled={!canSubmit}>
+                        <Button onPress={handleSubmit} loading={isSaving} disabled={!canSubmit}>
                           حفظ وإنهاء
                         </Button>
                       </View>

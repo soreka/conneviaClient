@@ -44,14 +44,17 @@ export function useAuth(): UseAuthResult {
   // 2) Discover Auth0 endpoints (authorize, token, etc.)
   const discovery = AuthSession.useAutoDiscovery(`https://${ENV.AUTH0_DOMAIN}`);
 
-  // 3) Redirect URI – this should match what you put into Auth0
-  const redirectUri = React.useMemo(
-    () =>
-      AuthSession.makeRedirectUri({
-        path: "login-callback", // same path you used when you configured Callback URL
-      }),
-    []
-  );
+  // 3) Redirect URI – use scheme-based URI for stable callback across IP changes
+  // This generates: connevia://login-callback (from app.json scheme)
+  const redirectUri = React.useMemo(() => {
+    const uri = AuthSession.makeRedirectUri({
+      scheme: 'connevia',
+      path: 'login-callback',
+    });
+    // Log on boot so we can copy-paste the exact URL for Auth0 dashboard
+    console.log('[AUTH BOOT] redirectUri =', uri);
+    return uri;
+  }, []);
 
   // 4) Build an Auth Request (no network call yet)
   // prompt: "login" forces Auth0 to show login UI and issue fresh tokens
@@ -76,7 +79,7 @@ export function useAuth(): UseAuthResult {
         if (response.type !== "dismiss") {
           setState((prev) => ({
             ...prev,
-            error: `Login was not successful (type = ${response.type})`,
+            error: `فشل تسجيل الدخول (${response.type})`,
           }));
         }
         return;
@@ -141,7 +144,7 @@ export function useAuth(): UseAuthResult {
             console.log("User fetched from /v1/auth/me:", user);
             setState({ accessToken: access, user, isLoading: false, error: null });
           } catch (meError: unknown) {
-            const meMessage = meError instanceof Error ? meError.message : "Error fetching user from /v1/me";
+            const meMessage = meError instanceof Error ? meError.message : "فشل في جلب بيانات المستخدم";
             console.error("Failed to fetch user:", meMessage);
             // Still set token but without user
             setState({ accessToken: access, user: null, isLoading: false, error: meMessage });
@@ -151,7 +154,7 @@ export function useAuth(): UseAuthResult {
         }
       } catch (e: unknown) {
         const message =
-          e instanceof Error ? e.message : "Unknown error during token exchange";
+          e instanceof Error ? e.message : "خطأ غير معروف أثناء تسجيل الدخول";
         setState({ accessToken: null, user : null , isLoading: false, error: message });
       }
     })();
@@ -172,7 +175,7 @@ export function useAuth(): UseAuthResult {
       }
       setState((prev) => ({
         ...prev,
-        error: "Auth request is not ready yet. Try again in a moment.",
+        error: "جاري تحضير تسجيل الدخول، يرجى الانتظار",
       }));
       return;
     }
@@ -181,7 +184,7 @@ export function useAuth(): UseAuthResult {
       if (__DEV__) {
         console.log('[Auth] login() calling promptAsync()...');
       }
-      // In Expo Go we typically use the proxy (default behavior)
+      // Launch Auth0 login browser flow
       const result = await promptAsync();
       
       if (__DEV__) {
@@ -222,7 +225,7 @@ export function useAuth(): UseAuthResult {
       console.log("Me", user);
       setState((prev) => ({ ...prev, user, isLoading: false, error: null }));
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Error calling /v1/me";
+      const message = e instanceof Error ? e.message : "خطأ في جلب البيانات";
       setState((prev) => ({ ...prev, isLoading: false, error: message }));
     }
   }, []);

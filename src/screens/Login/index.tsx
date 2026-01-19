@@ -34,10 +34,6 @@ const Login = () => {
     await login();
   };
 
-  const handleAdminLogin = () => {
-    void login();
-  };
-
   const getErrorText = (e: unknown): string => {
   if (!e) return '';
 
@@ -58,7 +54,7 @@ const Login = () => {
     try {
       return JSON.stringify(obj);
     } catch {
-      return 'Unknown error';
+      return 'خطأ غير معروف';
     }
   }
 
@@ -90,9 +86,8 @@ const Login = () => {
           <LoginActionCard
             onLogin={() => void handleLogin()}
             onCreateAccount={() => void handleCreateAccount()}
-            onAdminLogin={handleAdminLogin}
             isLoading={isLoading}
-           error={getErrorText(error)}
+            error={getErrorText(error)}
           />
           <FeatureCards />
           </View>

@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { CheckCircle, Star } from 'lucide-react-native';
+import { agorotToNis } from '../../../utils/formatPrice';
 
 interface PlanCardProps {
   id: string;
@@ -115,7 +116,7 @@ export const PlanCard: React.FC<PlanCardProps> = ({
 
       {/* Price */}
       <View className="flex-row-reverse items-baseline justify-end mb-4">
-        <Text className="text-3xl font-bold text-purple-600">{priceFormatted.replace(' ₪', '')}</Text>
+        <Text className="text-3xl font-bold text-purple-600">{agorotToNis(price)}</Text>
         <Text className="text-base text-gray-500 mr-1">₪ / شهرياً</Text>
       </View>
 

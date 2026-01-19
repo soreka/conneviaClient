@@ -33,6 +33,7 @@ import {
   formatTime,
   getEndTime,
 } from '../../utils/dates';
+import { isSessionInPast, getAdminPastSessionLabel } from '../../utils/sessionTime';
 import {
   SessionCore,
   getOccupancyPercent,
@@ -46,7 +47,6 @@ import {
   useCreateAdminSessionMutation,
   useUpdateAdminSessionMutation,
   useCancelAdminSessionMutation,
-  useAddAdminBookingMutation,
   useDeleteAdminBookingMutation,
 } from '../../features/api/apiSlice';
 import { Alert } from 'react-native';
@@ -222,7 +222,6 @@ export const AdminScheduleScreen = () => {
   const [createSession, { isLoading: isCreatingSession }] = useCreateAdminSessionMutation();
   const [updateSession, { isLoading: isUpdatingSession }] = useUpdateAdminSessionMutation();
   const [cancelSession, { isLoading: isCancellingSession }] = useCancelAdminSessionMutation();
-  const [addBooking, { isLoading: isAddingBooking }] = useAddAdminBookingMutation();
   const [deleteBooking, { isLoading: isDeletingBooking }] = useDeleteAdminBookingMutation();
   
   // Modal states
@@ -317,39 +316,6 @@ export const AdminScheduleScreen = () => {
   const handleAddBooking = () => {
     closeAllModals();
     setAddBookingModalVisible(true);
-  };
-
-  const handleAddBookingSubmit = async (customerName: string, phone: string, bedNumber: number) => {
-    if (!selectedSlot) return;
-    
-    try {
-      await addBooking({
-        sessionId: selectedSlot.id,
-        customerName,
-        phone,
-        bedNumber,
-      }).unwrap();
-      
-      // RTK Query auto-refetches via tag invalidation
-      // Reload details to show new booking
-      triggerGetDetails(selectedSlot.id)
-        .unwrap()
-        .then((result) => {
-          const bookings: LocalBooking[] = result.session.bookings.map((b) => ({
-            id: b.id,
-            customerName: b.customerName,
-            phone: b.phone || '',
-            bedNumber: b.bedNumber,
-          }));
-          setSelectedSlotBookings(bookings);
-        });
-      
-      closeAllModals();
-      Alert.alert('تم', 'تمت إضافة الحجز بنجاح');
-    } catch (error) {
-      console.error('Failed to add booking:', error);
-      Alert.alert('خطأ', 'فشل في إضافة الحجز');
-    }
   };
 
   // Edit Session handlers
@@ -492,6 +458,7 @@ export const AdminScheduleScreen = () => {
 
   const renderSlotCard = ({ item }: { item: AdminSlot }) => {
     const isFull = item.bookedCount >= item.capacity;
+    const isPast = isSessionInPast(item.startsAt);
     const startTime = formatTime(item.startsAt);
     const endTime = getEndTime(item.startsAt, item.durationMin);
     const timeRange = `${startTime} - ${endTime}`;
@@ -510,6 +477,7 @@ export const AdminScheduleScreen = () => {
           shadowOpacity: 0.05,
           shadowRadius: 3,
           elevation: 2,
+          opacity: isPast ? 0.7 : 1,
         }}
       >
         {/* Header: Badge + Time */}
@@ -520,24 +488,39 @@ export const AdminScheduleScreen = () => {
               {timeRange}
             </Text>
           </View>
-          <View
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 4,
-              borderRadius: 12,
-              backgroundColor: isFull ? '#fef2f2' : '#f0fdf4',
-            }}
-          >
-            <Text
+          {isPast ? (
+            <View
               style={{
-                fontSize: 12,
-                fontWeight: '600',
-                color: isFull ? '#dc2626' : '#16a34a',
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 12,
+                backgroundColor: '#f3f4f6',
               }}
             >
-              {isFull ? 'ممتلئ' : 'متاح'}
-            </Text>
-          </View>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280' }}>
+                انتهت
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 12,
+                backgroundColor: isFull ? '#fef2f2' : '#f0fdf4',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isFull ? '#dc2626' : '#16a34a',
+                }}
+              >
+                {isFull ? 'ممتلئ' : 'متاح'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Title */}
@@ -600,6 +583,7 @@ export const AdminScheduleScreen = () => {
     const startTime = formatTime(selectedSlot.startsAt);
     const endTime = getEndTime(selectedSlot.startsAt, selectedSlot.durationMin);
     const timeRange = `${startTime} - ${endTime}`;
+    const isPastSession = isSessionInPast(selectedSlot.startsAt);
 
     return (
       <Modal
@@ -640,6 +624,24 @@ export const AdminScheduleScreen = () => {
                 <X size={24} color="#6b7280" />
               </Pressable>
             </View>
+
+            {/* Past Session Banner */}
+            {isPastSession && (
+              <View
+                style={{
+                  backgroundColor: '#fef3c7',
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  flexDirection: 'row-reverse',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#92400e', textAlign: 'center' }}>
+                  {getAdminPastSessionLabel()}
+                </Text>
+              </View>
+            )}
 
             <ScrollView style={{ padding: 20 }}>
               {/* Info Block */}
@@ -725,64 +727,70 @@ export const AdminScheduleScreen = () => {
                       </Text>
                     </View>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
-                    <Pressable onPress={() => handleEditBooking(booking)} style={{ padding: 8 }}>
-                      <Edit2 size={18} color="#8b5cf6" />
-                    </Pressable>
-                    <Pressable onPress={() => handleDeleteBooking(booking)} style={{ padding: 8 }}>
-                      <Trash2 size={18} color="#dc2626" />
-                    </Pressable>
-                  </View>
+                  {!isPastSession && (
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <Pressable onPress={() => handleEditBooking(booking)} style={{ padding: 8 }}>
+                        <Edit2 size={18} color="#8b5cf6" />
+                      </Pressable>
+                      <Pressable onPress={() => handleDeleteBooking(booking)} style={{ padding: 8 }}>
+                        <Trash2 size={18} color="#dc2626" />
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               ))}
 
               {/* Action Buttons */}
               <View style={{ marginTop: 20, marginBottom: 40 }}>
-                <Pressable
-                  onPress={handleEditSession}
-                  style={{
-                    backgroundColor: '#8b5cf6',
-                    borderRadius: 12,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#ffffff' }}>
-                    تعديل بيانات الحصة
-                  </Text>
-                </Pressable>
+                {!isPastSession && (
+                  <>
+                    <Pressable
+                      onPress={handleEditSession}
+                      style={{
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 12,
+                        paddingVertical: 14,
+                        alignItems: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#ffffff' }}>
+                        تعديل بيانات الحصة
+                      </Text>
+                    </Pressable>
 
-                <Pressable 
-                  onPress={handleAddBooking}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: '#8b5cf6',
-                    borderRadius: 12,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#8b5cf6' }}>
-                    إضافة زبونة يدويًا
-                  </Text>
-                </Pressable>
+                    <Pressable 
+                      onPress={handleAddBooking}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#8b5cf6',
+                        borderRadius: 12,
+                        paddingVertical: 14,
+                        alignItems: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#8b5cf6' }}>
+                        إضافة زبونة يدويًا
+                      </Text>
+                    </Pressable>
 
-                <Pressable
-                  onPress={handleCancelSession}
-                  style={{
-                    backgroundColor: '#fef2f2',
-                    borderRadius: 12,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#dc2626' }}>
-                    إلغاء الحصة
-                  </Text>
-                </Pressable>
+                    <Pressable
+                      onPress={handleCancelSession}
+                      style={{
+                        backgroundColor: '#fef2f2',
+                        borderRadius: 12,
+                        paddingVertical: 14,
+                        alignItems: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#dc2626' }}>
+                        إلغاء الحصة
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
 
                 <Pressable
                   onPress={closeDetailsModal}
@@ -914,10 +922,7 @@ export const AdminScheduleScreen = () => {
         visible={addBookingModalVisible}
         sessionId={selectedSlot?.id || ''}
         sessionTitle={selectedSlot?.title || ''}
-        capacity={selectedSlot?.capacity || 0}
-        bookedBeds={selectedSlotBookings.map(b => b.bedNumber).filter((n): n is number => n !== undefined)}
         onClose={closeAllModals}
-        onAdd={handleAddBookingSubmit}
         onCustomerAdded={() => {
           // Reload session details to show new booking
           if (selectedSlot) {

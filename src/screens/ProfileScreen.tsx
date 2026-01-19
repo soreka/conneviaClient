@@ -13,8 +13,6 @@ import {
   ArrowRight,
   Camera,
   Edit,
-  Upload,
-  FileText,
   Phone,
   MessageCircle,
   Bell,
@@ -223,16 +221,7 @@ export const ProfileScreen = () => {
     Toast.show({
       type: 'info',
       text1: 'تغيير كلمة المرور',
-      text2: 'يتم من خلال Auth0 / قريباً',
-      position: 'bottom',
-    });
-  };
-
-  const handleUploadHealthFile = () => {
-    Toast.show({
-      type: 'info',
-      text1: 'رفع الملفات الصحية',
-      text2: 'قريباً',
+      text2: 'هذه الميزة قادمة قريباً',
       position: 'bottom',
     });
   };
@@ -633,32 +622,6 @@ export const ProfileScreen = () => {
                   </View>
                 </>
               )}
-            </View>
-          </Card>
-
-          {/* Health Files Card */}
-          <Card className="bg-white border border-[#E8E3ED] rounded-2xl shadow-sm mt-4">      
-            <View className="p-4">
-              <View className="flex-row-reverse items-center mb-3">
-                <FileText size={20} color="#A68CD4" />
-                <Text className="text-lg font-bold text-[#666666] text-right mr-2">الملفات الصحية</Text>
-              </View>
-
-              <Text className="text-sm text-[#8C8C8C] text-right mb-4">
-                قومي برفع ملفاتك الصحية لمساعدة المدربة على تخصيص التمرين
-              </Text>
-
-              <Pressable
-                onPress={handleUploadHealthFile}
-                className="border border-dashed border-[#A68CD4] rounded-xl py-3 px-4 flex-row-reverse items-center justify-center"
-              >
-                <Upload size={18} color="#A68CD4" />
-                <Text className="text-sm text-[#A68CD4] font-medium mr-2">رفع ملف</Text>
-              </Pressable>
-
-              <Text className="text-xs text-[#8C8C8C] text-center mt-3">
-                لا توجد ملفات مرفوعة
-              </Text>
             </View>
           </Card>
 

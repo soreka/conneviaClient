@@ -41,7 +41,8 @@ export const AppInput: React.FC<AppInputProps> = ({
       
       <View
         className={cn(
-          'flex-row-reverse items-center border rounded-lg px-3 h-12 bg-background',
+          'flex-row-reverse border rounded-lg px-3 bg-background',
+          props.multiline ? 'items-start py-3' : 'items-center h-12',
           isFocused && !hasError && 'border-primary',
           hasError ? 'border-destructive' : 'border-input',
         )}
@@ -64,6 +65,9 @@ export const AppInput: React.FC<AppInputProps> = ({
             inputClassName
           )}
           placeholderTextColor="#8C8C8C"
+          textAlign="right"
+          textAlignVertical={props.multiline ? 'top' : 'center'}
+          style={{ includeFontPadding: false }}
         />
         
         {isPassword ? (

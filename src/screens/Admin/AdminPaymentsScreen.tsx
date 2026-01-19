@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl, TextInput } from 'react-native';
 import { CheckCircle, XCircle, Clock, User, Banknote, Building2 } from 'lucide-react-native';
 import { Screen, Card, Button, Badge } from '../../components/UI';
+import { agorotToNis } from '../../utils/formatPrice';
 import {
   useGetAdminPaymentSubmissionsQuery,
   useApprovePaymentSubmissionMutation,
@@ -170,7 +171,7 @@ export const AdminPaymentsScreen = () => {
                     <View className="flex-row-reverse justify-between mb-2">
                       <Text className="text-sm text-foreground">السعر:</Text>
                       <Text className="text-sm font-medium text-primary">
-                        {submission.plan?.price ? `${(submission.plan.price / 100).toFixed(2)} ₪` : '-'}
+                        {submission.plan?.price ? `${agorotToNis(submission.plan.price)} ₪` : '-'}
                       </Text>
                     </View>
 

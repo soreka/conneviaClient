@@ -8,6 +8,7 @@ import {
   useGetMyReservationsQuery,
   useGetMySubscriptionQuery,
   useGetMySubscriptionUsageQuery,
+  useGetMeQuery,
 } from '../../features/api/apiSlice';
 import {
   DashboardHeader,
@@ -27,7 +28,11 @@ const REFETCH_DEBOUNCE_MS = 1000;
 
 export const DashboardScreen = () => {
   const navigation = useNavigation<any>();
-  const user = useAppSelector(selectCurrentUser);
+  const authUser = useAppSelector(selectCurrentUser);
+  
+  // Get full user profile data (includes firstName, lastName)
+  const { data: meData } = useGetMeQuery();
+  const user = meData?.user;
   
   // Animation values for cards
   const bookingCardAnim = useRef(new Animated.Value(0)).current;
@@ -219,7 +224,8 @@ export const DashboardScreen = () => {
       >
         {/* Header */}
         <DashboardHeader
-          userName={user?.email}
+          userName={user?.fullName || user?.firstName}
+          userEmail={user?.email || authUser?.email}
           hasNotifications={false}
           onNotificationPress={handleNotificationPress}
           onAvatarPress={handleAvatarPress}

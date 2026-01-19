@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { X, Banknote, Building2, CheckCircle } from 'lucide-react-native';
+import { agorotToNis } from '../../../utils/formatPrice';
 
 type PaymentMethod = 'cash' | 'bank_transfer';
 type RequestedAction = 'renew' | 'upgrade_current_month' | 'upgrade_next_month' | 'downgrade_next_month';
@@ -85,7 +86,7 @@ export const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
 
           {planPrice !== undefined && (
             <Text className="text-lg font-bold text-purple-700 text-right mb-4">
-              المبلغ: ₪{planPrice}
+              المبلغ: {agorotToNis(planPrice)} ₪
             </Text>
           )}
 

@@ -197,7 +197,6 @@ export const apiSlice = createApi({
             weight?: number;
             healthStatus?: string;
           };
-          healthFileUrl?: string;
           role: 'customer' | 'admin';
           profileCompleted: boolean;
           createdAt: string;
@@ -292,7 +291,6 @@ export const apiSlice = createApi({
             weight?: number;
             healthStatus?: string;
           };
-          healthFileUrl?: string;
           profileCompleted: boolean;
         };
       },
@@ -303,7 +301,6 @@ export const apiSlice = createApi({
         age: number;
         weight: number;
         healthCondition: string;
-        healthFileUrl?: string;
       }
     >({
       query: (body) => ({
@@ -312,17 +309,6 @@ export const apiSlice = createApi({
         body,
       }),
       invalidatesTags: ['Me'],
-    }),
-
-    uploadHealthFile: builder.mutation<
-      { ok: boolean; healthFileUrl: string; filename: string; size: number; mimeType: string },
-      { fileData: string }
-    >({
-      query: (body) => ({
-        url: '/uploads/health-file',
-        method: 'POST',
-        body,
-      }),
     }),
 
     // ============================================
@@ -1040,6 +1026,57 @@ export const apiSlice = createApi({
     }),
 
     // ============================================
+    // ADMIN JOBS (Debug/Manual Trigger)
+    // ============================================
+
+    // POST /v1/admin/jobs/run-midnight - Manually trigger midnight job
+    adminRunMidnightJob: builder.mutation<
+      {
+        ok: boolean;
+        message: string;
+        result: {
+          success: boolean;
+          startedAt: string;
+          completedAt: string;
+          durationMs: number;
+          stats: {
+            activeSubsChecked: number;
+            subsExpired: number;
+            usersUpdated: number;
+          };
+          errors?: string[];
+        };
+      },
+      void
+    >({
+      query: () => ({
+        url: '/admin/jobs/run-midnight',
+        method: 'POST',
+      }),
+      invalidatesTags: ['AdminCustomers', 'AdminCustomer'],
+    }),
+
+    // GET /v1/admin/jobs/status - Get job status
+    adminGetJobStatus: builder.query<
+      {
+        ok: boolean;
+        jobs: {
+          'daily-midnight-subscription-expiry': {
+            lastRunAt: string | null;
+            lastRunDurationMs: number | null;
+            lastRunResult: 'success' | 'error' | null;
+            lastRunError: string | null;
+            lockedUntil: string | null;
+            lockedBy: string | null;
+          };
+        };
+      },
+      void
+    >({
+      query: () => '/admin/jobs/status',
+    }),
+
+    // ============================================
     // ADMIN CUSTOMER SEARCH & ADD TO SESSION
     // ============================================
 
@@ -1093,7 +1130,6 @@ export const {
   usePatchMeMutation,
   usePatchMyHealthMutation,
   usePatchMeFullMutation,
-  useUploadHealthFileMutation,
   // Subscription hooks
   useGetSubscriptionPlansQuery,
   useGetMySubscriptionQuery,
@@ -1132,4 +1168,7 @@ export const {
   // Admin customer search & add hooks
   useLazyAdminSearchCustomersQuery,
   useAdminAddCustomerToSessionMutation,
+  // Admin jobs hooks
+  useAdminRunMidnightJobMutation,
+  useAdminGetJobStatusQuery,
 } = apiSlice;

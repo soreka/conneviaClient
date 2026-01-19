@@ -4,7 +4,6 @@ import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 interface LoginActionCardProps {
   onLogin: () => void;
   onCreateAccount: () => void;
-  onAdminLogin: () => void;
   isLoading?: boolean;
   error?: string | null;
 }
@@ -12,7 +11,6 @@ interface LoginActionCardProps {
 export const LoginActionCard: React.FC<LoginActionCardProps> = ({
   onLogin,
   onCreateAccount,
-  onAdminLogin,
   isLoading = false,
   error,
 }) => {
@@ -61,10 +59,6 @@ export const LoginActionCard: React.FC<LoginActionCardProps> = ({
           <Text className="text-[#666666] text-lg font-semibold">إنشاء حساب جديد</Text>
         </Pressable>
 
-        {/* Admin Login Link */}
-        <Pressable onPress={onAdminLogin} className="items-center py-2">
-          <Text className="text-sm text-[#8C8C8C]">دخول الإدارة</Text>
-        </Pressable>
       </View>
     </View>
   );

@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, RefreshControl, AppState } fr
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Clock, ArrowRight, CreditCard } from 'lucide-react-native';
+import { formatAgorotToNis } from '../../utils/formatPrice';
 import {
   useGetMySubscriptionQuery,
   useGetMySubscriptionUsageQuery,
@@ -143,10 +144,8 @@ export const SubscriptionScreen = () => {
     return Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  // Format price from agorot to shekels
-  const formatPrice = (priceAgorot: number) => {
-    return `${(priceAgorot / 100).toFixed(0)} ₪`;
-  };
+  // Use shared helper for price formatting
+  const formatPrice = formatAgorotToNis;
 
   if (isLoading) {
     return (
@@ -215,7 +214,7 @@ export const SubscriptionScreen = () => {
                     الباقة: {pending.plan.name} ({pending.plan.monthlyLimit} جلسات/شهر)
                   </Text>
                   <Text className="text-sm font-bold text-yellow-700 text-right mt-1">
-                    المبلغ: ₪{pending.plan.price}
+                    المبلغ: {formatPrice(pending.plan.price)}
                   </Text>
                 </>
               )}

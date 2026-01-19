@@ -1,18 +1,18 @@
 // src/screens/Admin/components/AddBookingModal.tsx
-// Role: Modal for adding a booking manually or selecting existing customer
-import React, { useState, useMemo, useCallback } from 'react';
+// Role: Modal for adding an existing customer to a session via search
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   Modal,
   Pressable,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  ToastAndroid,
   Alert,
 } from 'react-native';
-import { X, UserPlus, UserCheck, Edit3 } from 'lucide-react-native';
+import { X, UserPlus, UserCheck } from 'lucide-react-native';
 import { CustomerSearchInput } from './CustomerSearchInput';
 import { useAdminAddCustomerToSessionMutation } from '../../../features/api/apiSlice';
 
@@ -27,48 +27,33 @@ interface AddBookingModalProps {
   visible: boolean;
   sessionId: string;
   sessionTitle: string;
-  capacity: number;
-  bookedBeds: number[]; // Array of bed numbers already booked
   onClose: () => void;
-  onAdd: (customerName: string, phone: string, bedNumber: number) => void;
-  onCustomerAdded?: () => void; // Called when existing customer is added
+  onCustomerAdded?: () => void; // Called when customer is added
 }
+
+// Helper to show toast cross-platform
+const showToast = (message: string) => {
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(message, ToastAndroid.SHORT);
+  } else {
+    // iOS doesn't have ToastAndroid, use Alert as fallback
+    Alert.alert('', message);
+  }
+};
 
 export const AddBookingModal: React.FC<AddBookingModalProps> = ({
   visible,
   sessionId,
   sessionTitle,
-  capacity,
-  bookedBeds,
   onClose,
-  onAdd,
   onCustomerAdded,
 }) => {
-  // Mode: 'search' = search existing customer, 'manual' = enter manually
-  const [mode, setMode] = useState<'search' | 'manual'>('search');
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
-  const [customerName, setCustomerName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [selectedBed, setSelectedBed] = useState<number | null>(null);
 
   const [addCustomerToSession, { isLoading: isAddingCustomer }] = useAdminAddCustomerToSessionMutation();
 
-  // Generate array of bed numbers 1..capacity
-  const beds = useMemo(() => 
-    Array.from({ length: capacity }, (_, i) => i + 1),
-    [capacity]
-  );
-
-  // Handle manual add (existing flow)
-  const handleManualAdd = () => {
-    if (customerName.trim() && selectedBed) {
-      onAdd(customerName.trim(), phone.trim(), selectedBed);
-      resetAndClose();
-    }
-  };
-
-  // Handle adding existing customer
-  const handleAddExistingCustomer = useCallback(async () => {
+  // Handle adding customer to session
+  const handleAddCustomer = useCallback(async () => {
     if (!selectedCustomer) return;
 
     try {
@@ -80,7 +65,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
       if (result.alreadyBooked) {
         Alert.alert('تنبيه', 'هذه العميلة مسجلة بالفعل في هذه الجلسة');
       } else {
-        Alert.alert('تم', `تمت إضافة ${selectedCustomer.fullName} بنجاح`);
+        showToast('تمت الإضافة بنجاح');
       }
 
       onCustomerAdded?.();
@@ -102,11 +87,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
 
   // Reset state and close
   const resetAndClose = () => {
-    setMode('search');
     setSelectedCustomer(null);
-    setCustomerName('');
-    setPhone('');
-    setSelectedBed(null);
     onClose();
   };
 
@@ -160,249 +141,80 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               {sessionTitle}
             </Text>
 
-            {/* Mode Toggle */}
-            <View style={{ flexDirection: 'row-reverse', marginBottom: 20, gap: 8 }}>
-              <Pressable
-                onPress={() => { setMode('search'); setSelectedCustomer(null); }}
-                style={{
-                  flex: 1,
-                  flexDirection: 'row-reverse',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  backgroundColor: mode === 'search' ? '#8b5cf6' : '#f3f4f6',
-                }}
-              >
-                <UserCheck size={16} color={mode === 'search' ? '#fff' : '#6b7280'} />
-                <Text style={{ 
-                  fontSize: 13, 
-                  fontWeight: '600', 
-                  color: mode === 'search' ? '#fff' : '#6b7280',
-                  marginRight: 6,
-                }}>
-                  بحث عميلة
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setMode('manual'); setSelectedCustomer(null); }}
-                style={{
-                  flex: 1,
-                  flexDirection: 'row-reverse',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  backgroundColor: mode === 'manual' ? '#8b5cf6' : '#f3f4f6',
-                }}
-              >
-                <Edit3 size={16} color={mode === 'manual' ? '#fff' : '#6b7280'} />
-                <Text style={{ 
-                  fontSize: 13, 
-                  fontWeight: '600', 
-                  color: mode === 'manual' ? '#fff' : '#6b7280',
-                  marginRight: 6,
-                }}>
-                  إدخال يدوي
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Search Mode */}
-            {mode === 'search' && (
-              <View style={{ marginBottom: 20 }}>
-                {selectedCustomer ? (
-                  // Show selected customer
+            {/* Customer Search */}
+            <View style={{ marginBottom: 20 }}>
+              {selectedCustomer ? (
+                // Show selected customer
+                <View
+                  style={{
+                    backgroundColor: '#f3e8ff',
+                    borderRadius: 12,
+                    padding: 14,
+                    flexDirection: 'row-reverse',
+                    alignItems: 'center',
+                  }}
+                >
                   <View
                     style={{
-                      backgroundColor: '#f3e8ff',
-                      borderRadius: 12,
-                      padding: 14,
-                      flexDirection: 'row-reverse',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#8b5cf6',
                       alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: 12,
                     }}
                   >
-                    <View
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        backgroundColor: '#8b5cf6',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginLeft: 12,
-                      }}
-                    >
-                      <UserCheck size={20} color="#fff" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: '#1f2937', textAlign: 'right' }}>
-                        {selectedCustomer.fullName}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'right', marginTop: 2 }}>
-                        {selectedCustomer.email}
-                      </Text>
-                    </View>
-                    <Pressable onPress={handleClearSelection} style={{ padding: 8 }}>
-                      <X size={18} color="#8b5cf6" />
-                    </Pressable>
+                    <UserCheck size={20} color="#fff" />
                   </View>
-                ) : (
-                  // Show search input
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#1f2937', textAlign: 'right' }}>
+                      {selectedCustomer.fullName}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'right', marginTop: 2 }}>
+                      {selectedCustomer.email}
+                    </Text>
+                  </View>
+                  <Pressable onPress={handleClearSelection} style={{ padding: 8 }}>
+                    <X size={18} color="#8b5cf6" />
+                  </Pressable>
+                </View>
+              ) : (
+                // Show search input with helper text
+                <>
                   <CustomerSearchInput
                     onSelectCustomer={handleSelectCustomer}
-                    placeholder="ابحثي بالاسم أو الإيميل أو الجوال..."
+                    placeholder="ابحثي بالاسم..."
                   />
-                )}
-              </View>
-            )}
-
-            {/* Manual Mode */}
-            {mode === 'manual' && (
-              <>
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', textAlign: 'right', marginBottom: 8 }}>
-                    اسم العميلة
+                  <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'right', marginTop: 8 }}>
+                    اختاري زبونة من القائمة
                   </Text>
-                  <TextInput
-                    value={customerName}
-                    onChangeText={setCustomerName}
-                    placeholder="أدخلي اسم العميلة"
-                    placeholderTextColor="#9ca3af"
-                    style={{
-                      backgroundColor: '#f9fafb',
-                      borderWidth: 1,
-                      borderColor: '#e5e7eb',
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      fontSize: 15,
-                      color: '#1f2937',
-                      textAlign: 'right',
-                    }}
-                  />
-                </View>
+                </>
+              )}
+            </View>
 
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', textAlign: 'right', marginBottom: 8 }}>
-                    رقم الجوال
-                  </Text>
-                  <TextInput
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="05xxxxxxxx"
-                    placeholderTextColor="#9ca3af"
-                    keyboardType="phone-pad"
-                    style={{
-                      backgroundColor: '#f9fafb',
-                      borderWidth: 1,
-                      borderColor: '#e5e7eb',
-                      borderRadius: 12,
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      fontSize: 15,
-                      color: '#1f2937',
-                      textAlign: 'right',
-                    }}
-                  />
-                </View>
-
-                {/* Bed Selection - Only for manual mode */}
-                <View style={{ marginBottom: 24 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', textAlign: 'right', marginBottom: 8 }}>
-                    رقم السرير
-                  </Text>
-                  <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
-                    {beds.map((bedNum) => {
-                      const isBooked = bookedBeds.includes(bedNum);
-                      const isSelected = selectedBed === bedNum;
-                      
-                      return (
-                        <Pressable
-                          key={bedNum}
-                          onPress={() => !isBooked && setSelectedBed(bedNum)}
-                          disabled={isBooked}
-                          style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 10,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: isBooked 
-                              ? '#f3f4f6' 
-                              : isSelected 
-                                ? '#8b5cf6' 
-                                : '#ffffff',
-                            borderWidth: isSelected ? 0 : 1,
-                            borderColor: isBooked ? '#e5e7eb' : '#d1d5db',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              fontWeight: '600',
-                              color: isBooked 
-                                ? '#9ca3af' 
-                                : isSelected 
-                                  ? '#ffffff' 
-                                  : '#374151',
-                            }}
-                          >
-                            {bedNum}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {!selectedBed && (
-                    <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'right', marginTop: 8 }}>
-                      اختاري رقم السرير المتاح
-                    </Text>
-                  )}
-                </View>
-              </>
-            )}
-
-            {/* Actions */}
-            {mode === 'search' ? (
-              <Pressable
-                onPress={handleAddExistingCustomer}
-                disabled={!selectedCustomer || isAddingCustomer}
-                style={{
-                  backgroundColor: (!selectedCustomer || isAddingCustomer) ? '#d1d5db' : '#8b5cf6',
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  marginBottom: 12,
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                }}
-              >
-                {isAddingCustomer ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#ffffff' }}>
-                    إضافة العميلة للجلسة
-                  </Text>
-                )}
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={handleManualAdd}
-                disabled={!customerName.trim() || !selectedBed}
-                style={{
-                  backgroundColor: (!customerName.trim() || !selectedBed) ? '#d1d5db' : '#8b5cf6',
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  marginBottom: 12,
-                }}
-              >
+            {/* Add Button */}
+            <Pressable
+              onPress={handleAddCustomer}
+              disabled={!selectedCustomer || isAddingCustomer}
+              style={{
+                backgroundColor: (!selectedCustomer || isAddingCustomer) ? '#d1d5db' : '#8b5cf6',
+                borderRadius: 12,
+                paddingVertical: 14,
+                alignItems: 'center',
+                marginBottom: 12,
+                flexDirection: 'row',
+                justifyContent: 'center',
+              }}
+            >
+              {isAddingCustomer ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
                 <Text style={{ fontSize: 15, fontWeight: '600', color: '#ffffff' }}>
-                  إضافة الحجز
+                  إضافة العميلة للجلسة
                 </Text>
-              </Pressable>
-            )}
+              )}
+            </Pressable>
 
             <Pressable
               onPress={handleClose}

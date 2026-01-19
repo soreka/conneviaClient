@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface DashboardHeaderProps {
   userName?: string;
+  userEmail?: string;
   hasNotifications?: boolean;
   onNotificationPress?: () => void;
   onAvatarPress?: () => void;
@@ -14,16 +15,19 @@ interface DashboardHeaderProps {
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userName,
+  userEmail,
   hasNotifications = false,
   onNotificationPress,
   onAvatarPress,
 }) => {
   const insets = useSafeAreaInsets();
   
-  // Get first name or first part of email
+  // Get display name - prefer actual name, fallback to email prefix
   const displayName = userName 
-    ? userName.split(' ')[0].split('@')[0] 
-    : 'ضيفة';
+    ? userName.split(' ')[0]
+    : userEmail 
+      ? userEmail.split('@')[0] 
+      : 'ضيفة';
 
   // Get initial for avatar
   const initial = displayName.charAt(0).toUpperCase();
@@ -72,6 +76,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <Text className="text-2xl font-bold text-white mb-1">
             مرحبًا يا {displayName} 👋
           </Text>
+          {userEmail && (
+            <Text className="text-sm text-white/70 mb-1">
+              {userEmail}
+            </Text>
+          )}
           <Text className="text-base text-white/80">
             سعداء بعودتك إلى التدريب
           </Text>

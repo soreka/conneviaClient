@@ -3,6 +3,8 @@ import { View, Text, FlatList, Pressable, ActivityIndicator, RefreshControl, App
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGetSessionsQuery } from '../features/api/apiSlice';
+import { isSessionInPast, getPastSessionLabel, getPastSessionAlertMessage } from '../utils/sessionTime';
+import { Alert } from 'react-native';
 
 type ScheduleStackParamList = {
   ScheduleList: undefined;
@@ -131,13 +133,22 @@ export const ScheduleScreen = () => {
         }
         renderItem={({ item }) => {
           const isFull = item.availableSeats <= 0;
+          const isPast = isSessionInPast(item.startsAt);
+          
+          const handlePress = () => {
+            if (isPast) {
+              Alert.alert('انتبهي', getPastSessionAlertMessage());
+              return;
+            }
+            navigation.navigate('BookingWizard', { 
+              startStep: 3, 
+              preselectedSessionId: item.id 
+            });
+          };
           
           return (
             <Pressable
-              onPress={() => navigation.navigate('BookingWizard', { 
-                startStep: 3, 
-                preselectedSessionId: item.id 
-              })}
+              onPress={handlePress}
               className="bg-white rounded-xl p-4 mb-3 shadow-sm"
             >
               <Text className="text-lg font-bold text-gray-900 mb-1">{item.title}</Text>
@@ -158,21 +169,31 @@ export const ScheduleScreen = () => {
               )}
 
               <View className="flex-row items-center justify-between mt-2">
-                <View
-                  className={`px-3 py-1 rounded-full ${
-                    isFull ? 'bg-red-100' : 'bg-green-100'
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-semibold ${
-                      isFull ? 'text-red-700' : 'text-green-700'
+                {isPast ? (
+                  <View className="px-3 py-1 rounded-full bg-gray-100">
+                    <Text className="text-sm font-semibold text-gray-500">
+                      {getPastSessionLabel()}
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    className={`px-3 py-1 rounded-full ${
+                      isFull ? 'bg-red-100' : 'bg-green-100'
                     }`}
                   >
-                    {isFull ? 'مكتمل' : `${item.availableSeats} أماكن متاحة`}
-                  </Text>
-                </View>
+                    <Text
+                      className={`text-sm font-semibold ${
+                        isFull ? 'text-red-700' : 'text-green-700'
+                      }`}
+                    >
+                      {isFull ? 'مكتمل' : `${item.availableSeats} أماكن متاحة`}
+                    </Text>
+                  </View>
+                )}
                 
-                <Text className="text-violet-600 font-semibold">عرض التفاصيل ←</Text>
+                {!isPast && (
+                  <Text className="text-violet-600 font-semibold">عرض التفاصيل ←</Text>
+                )}
               </View>
             </Pressable>
           );

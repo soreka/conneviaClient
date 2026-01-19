@@ -12,48 +12,37 @@ import { navigationRef } from './src/navigation/navigationRef';
 import { logout } from './src/features/auth/authSlice';
 
 // ============================================
-// AUTH RESET MODE
-// Set to true to force-clear all stored tokens on app startup.
-// This fixes stuck login / wrong role issues caused by stale tokens.
-// Set back to false after successful test.
+// DEV-ONLY: Force Logout on Start
+// To enable: set EXPO_PUBLIC_FORCE_LOGOUT_ON_START=true in .env (DEV only)
+// Default: OFF - normal auth bootstrap runs
 // ============================================
-const AUTH_RESET_MODE = true;
+const FORCE_LOGOUT_ON_START =
+  __DEV__ && process.env.EXPO_PUBLIC_FORCE_LOGOUT_ON_START === 'true';
 
 const TOKEN_KEY = 'connevia.access_token';
 
 function AuthResetGate({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(!AUTH_RESET_MODE);
+  const [ready, setReady] = useState(!FORCE_LOGOUT_ON_START);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (!AUTH_RESET_MODE) return;
+    if (!FORCE_LOGOUT_ON_START) return;
 
     const runReset = async () => {
-      console.log('========================================');
-      console.log('[AUTH RESET MODE] Starting forced reset...');
-      console.log('========================================');
+      if (__DEV__) {
+        console.log('========================================');
+        console.log('[DEV] FORCE_LOGOUT_ON_START enabled - clearing auth...');
+        console.log('========================================');
+      }
 
       try {
-        // 1) Check if token exists
-        const existingToken = await SecureStore.getItemAsync(TOKEN_KEY);
-        console.log('[AUTH RESET] Token existed before delete:', !!existingToken);
-        if (existingToken) {
-          console.log('[AUTH RESET] Token length:', existingToken.length);
-        }
-
-        // 2) Delete token from SecureStore
         await SecureStore.deleteItemAsync(TOKEN_KEY);
-        console.log('[AUTH RESET] Token deleted from SecureStore ✓');
-
-        // 3) Dispatch logout to clear Redux state
         dispatch(logout());
-        console.log('[AUTH RESET] Redux logout() dispatched ✓');
-
-        console.log('========================================');
-        console.log('[AUTH RESET MODE] Reset complete. App will show Login.');
-        console.log('========================================');
+        if (__DEV__) {
+          console.log('[DEV] Auth reset complete. App will show Login.');
+        }
       } catch (error) {
-        console.error('[AUTH RESET] Error during reset:', error);
+        if (__DEV__) console.error('[DEV] Error during reset:', error);
       } finally {
         setReady(true);
       }
