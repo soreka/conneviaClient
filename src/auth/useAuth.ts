@@ -131,21 +131,34 @@ export function useAuth(): UseAuthResult {
 
         await setAccessToken(access);
 
-        // Automatically fetch user from /v1/auth/me after getting token
+        // Bootstrap user in MongoDB after getting Auth0 token
+        // This is the ONLY place that can create users - ensures GDPR-compliant deletion works
         if (access) {
           try {
-            const res = await api.get("/v1/auth/me");
-            const { user: rawUser } = res.data as { user: User & { role?: string } };
+            const res = await api.post("/v1/me/bootstrap");
+            const { me } = res.data as { ok: boolean; me: { id: string; email: string; fullName: string; role: string; profileCompleted: boolean } };
             // Normalize role from server using centralized normalizeRole
             const user: User = {
-              ...rawUser,
-              role: normalizeRole(rawUser.role),
+              id: me.id,
+              email: me.email,
+              role: normalizeRole(me.role),
             };
-            console.log("User fetched from /v1/auth/me:", user);
+            console.log("User bootstrapped from /v1/me/bootstrap:", user);
             setState({ accessToken: access, user, isLoading: false, error: null });
-          } catch (meError: unknown) {
-            const meMessage = meError instanceof Error ? meError.message : "فشل في جلب بيانات المستخدم";
-            console.error("Failed to fetch user:", meMessage);
+          } catch (bootstrapError: unknown) {
+            // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
+            const axiosError = bootstrapError as any;
+            const errorCode = axiosError?.response?.data?.error;
+            
+            if (errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
+              console.error("[Auth] Account deleted or not bootstrapped - forcing logout");
+              await setAccessToken(null);
+              setState({ accessToken: null, user: null, isLoading: false, error: "تم حذف الحساب" });
+              return;
+            }
+            
+            const meMessage = bootstrapError instanceof Error ? bootstrapError.message : "فشل في جلب بيانات المستخدم";
+            console.error("Failed to bootstrap user:", meMessage);
             // Still set token but without user
             setState({ accessToken: access, user: null, isLoading: false, error: meMessage });
           }
@@ -215,7 +228,7 @@ export function useAuth(): UseAuthResult {
   const refreshMe = React.useCallback(async (): Promise<void> => {
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
-      const res = await api.get("/v1/auth/me");
+      const res = await api.get("/v1/me");
       const { user: rawUser } = res.data as { user: User & { role?: string } };
       // Normalize role from server using centralized normalizeRole
       const user: User = {
@@ -225,6 +238,17 @@ export function useAuth(): UseAuthResult {
       console.log("Me", user);
       setState((prev) => ({ ...prev, user, isLoading: false, error: null }));
     } catch (e: unknown) {
+      // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
+      const axiosError = e as any;
+      const errorCode = axiosError?.response?.data?.error;
+      
+      if (errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
+        console.error("[Auth] Account deleted or not bootstrapped - forcing logout");
+        await setAccessToken(null);
+        setState({ accessToken: null, user: null, isLoading: false, error: "تم حذف الحساب" });
+        return;
+      }
+      
       const message = e instanceof Error ? e.message : "خطأ في جلب البيانات";
       setState((prev) => ({ ...prev, isLoading: false, error: message }));
     }

@@ -31,7 +31,6 @@ import {
   useAdminTodayBookingsQuery,
   useAdminNotificationsQuery,
   useUpdateBookingAttendanceMutation,
-  useAdminRunMidnightJobMutation,
 } from '../../features/api/apiSlice';
 
 // ============================================
@@ -284,7 +283,6 @@ export const AdminDashboardScreen: React.FC = () => {
   } = useAdminNotificationsQuery({ limit: 20 });
 
   const [updateAttendance] = useUpdateBookingAttendanceMutation();
-  const [runMidnightJob, { isLoading: isRunningJob }] = useAdminRunMidnightJobMutation();
 
   // Guarded refetch function (Windsurf Gold Pattern)
   const asyncGuardedRefetch = useCallback(async () => {
@@ -367,45 +365,6 @@ export const AdminDashboardScreen: React.FC = () => {
     },
     [updateAttendance, refetchBookings]
   );
-
-  // Handle manual midnight job trigger
-  const handleRunMidnightJob = useCallback(async () => {
-    Alert.alert(
-      'تشغيل مهمة منتصف الليل',
-      'سيتم تشغيل مهمة انتهاء الاشتراكات يدوياً. هل أنت متأكد؟',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'تشغيل',
-          style: 'default',
-          onPress: async () => {
-            try {
-              const result = await runMidnightJob().unwrap();
-              
-              const stats = result.result?.stats;
-              const message = result.result?.success 
-                ? `✅ اكتمل بنجاح!\n\n` +
-                  `• تم فحص: ${stats?.activeSubsChecked || 0} اشتراك نشط\n` +
-                  `• تم إنتهاء: ${stats?.subsExpired || 0} اشتراك\n` +
-                  `• تم تحديث: ${stats?.usersUpdated || 0} عميل\n` +
-                  `• المدة: ${result.result?.durationMs || 0}ms`
-                : `⚠️ اكتمل مع أخطاء\n\n${result.result?.errors?.join('\n') || ''}`;
-
-              Alert.alert(
-                result.result?.success ? 'نجح' : 'تحذير',
-                message
-              );
-
-              // Refetch dashboard data
-              refetchSummary();
-            } catch (err: any) {
-              Alert.alert('خطأ', err?.data?.error || 'فشل في تشغيل المهمة');
-            }
-          },
-        },
-      ]
-    );
-  }, [runMidnightJob, refetchSummary]);
 
   const stats: DashboardStats = summaryData?.stats || {
     todayBookings: 0,
@@ -530,31 +489,6 @@ export const AdminDashboardScreen: React.FC = () => {
             </Card>
           </View>
 
-          {/* Manual Job Trigger (Dev/Debug) */}
-          <TouchableOpacity
-            onPress={handleRunMidnightJob}
-            disabled={isRunningJob}
-            className="bg-purple-100 p-4 rounded-xl border border-purple-300 active:bg-purple-200"
-          >
-            <View className="flex-row-reverse items-center justify-center">
-              {isRunningJob ? (
-                <>
-                  <ActivityIndicator size="small" color="#8b5cf6" />
-                  <Text className="text-sm font-medium text-purple-700 mr-2">جاري التشغيل...</Text>
-                </>
-              ) : (
-                <>
-                  <Clock size={18} color="#8b5cf6" />
-                  <Text className="text-sm font-medium text-purple-700 mr-2">
-                    تشغيل مهمة منتصف الليل يدوياً
-                  </Text>
-                </>
-              )}
-            </View>
-            <Text className="text-xs text-purple-600 text-center mt-1">
-              (إنهاء الاشتراكات المنتهية وتحديث حالة العملاء)
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       )}
     </View>

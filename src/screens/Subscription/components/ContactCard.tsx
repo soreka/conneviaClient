@@ -11,8 +11,8 @@ interface ContactCardProps {
 
 export const ContactCard: React.FC<ContactCardProps> = ({
   onContactPress,
-  phoneNumber = '+972501234567',
-  whatsappNumber = '+972501234567',
+  phoneNumber = '+972549222841',
+  whatsappNumber = '+972549222841',
 }) => {
   const handlePhonePress = () => {
     Linking.openURL(`tel:${phoneNumber}`);

@@ -14,8 +14,8 @@ interface ContactModalProps {
 export const ContactModal: React.FC<ContactModalProps> = ({
   visible,
   onClose,
-  phoneNumber = '+972501234567',
-  whatsappNumber = '+972501234567',
+  phoneNumber = '+972549222841',
+  whatsappNumber = '+972549222841',
   email = 'support@connevia.com',
 }) => {
   const handlePhonePress = () => {

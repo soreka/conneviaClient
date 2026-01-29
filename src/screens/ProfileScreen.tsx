@@ -1,6 +1,7 @@
 // src/screens/ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, Alert, ActivityIndicator, Pressable, Linking, ScrollView, TextInput } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -21,6 +22,7 @@ import {
   Heart,
   Check,
   X,
+  Trash2,
 } from 'lucide-react-native';
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
@@ -32,11 +34,14 @@ import {
   usePatchMyHealthMutation,
   useGetMySubscriptionQuery,
   useGetMySubscriptionUsageQuery,
+  useDeleteMeMutation,
 } from '../features/api/apiSlice';
 
+const TOKEN_KEY = 'connevia.access_token';
+
 // Studio contact info
-const STUDIO_PHONE = '+972501234567';
-const STUDIO_WHATSAPP = '972501234567';
+const STUDIO_PHONE = '+972549222841';
+const STUDIO_WHATSAPP = '972549222841';
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
@@ -68,6 +73,7 @@ export const ProfileScreen = () => {
   // Mutations
   const [patchMe, { isLoading: isSavingPersonal }] = usePatchMeMutation();
   const [patchMyHealth, { isLoading: isSavingHealth }] = usePatchMyHealthMutation();
+  const [deleteMe, { isLoading: isDeleting }] = useDeleteMeMutation();
 
   const subscription = subscriptionData?.current;
   const usage = usageData?.usage;
@@ -120,6 +126,45 @@ export const ProfileScreen = () => {
             if (__DEV__) console.log('[Logout] ProfileScreen - AFTER dispatch(logout), calling resetToLogin');
             resetToLogin();
             if (__DEV__) console.log('[Logout] ProfileScreen - AFTER resetToLogin');
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'تأكيد حذف الحساب',
+      'سيتم حذف حسابك وبياناتك الشخصية بشكل نهائي. هل أنت متأكد؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMe().unwrap();
+              
+              // Clear token from SecureStore
+              await SecureStore.deleteItemAsync(TOKEN_KEY);
+              
+              // Show success toast
+              Toast.show({
+                type: 'success',
+                text1: 'تم حذف الحساب بنجاح',
+              });
+              
+              // Logout and navigate to Login
+              dispatch(logout());
+              resetToLogin();
+            } catch (error: any) {
+              console.error('[DeleteAccount] Error:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'فشل حذف الحساب، حاول مرة أخرى',
+              });
+            }
           },
         },
       ],
@@ -702,6 +747,19 @@ export const ProfileScreen = () => {
             className="w-full"
           >
             تسجيل الخروج
+          </Button>
+          </View>
+
+          {/* Delete Account Button */}
+          <View className="mt-3">
+          <Button
+            variant="outline"
+            onPress={handleDeleteAccount}
+            disabled={isDeleting}
+            leftIcon={<Trash2 size={18} color="#DC2626" />}
+            className="w-full border-red-500"
+          >
+            <Text className="text-red-600">{isDeleting ? 'جاري الحذف...' : 'حذف الحساب'}</Text>
           </Button>
           </View>
         </View>

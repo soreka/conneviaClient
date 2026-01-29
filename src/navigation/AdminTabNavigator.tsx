@@ -3,17 +3,19 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Calendar, Users, CreditCard } from 'lucide-react-native';
+import { LayoutDashboard, Calendar, Users, CreditCard, CircleUser } from 'lucide-react-native';
 import { AdminScheduleStackNavigator } from './AdminScheduleStackNavigator';
 import { AdminCustomersStackNavigator } from './AdminCustomersStackNavigator';
 import { AdminPaymentsScreen } from '../screens/Admin/AdminPaymentsScreen';
 import { AdminDashboardScreen } from '../screens/Admin/AdminDashboardScreen';
+import { AdminProfileScreen } from '../screens/Admin/AdminProfileScreen';
 
 export type AdminTabParamList = {
   AdminDashboard: undefined;
   AdminSchedule: undefined;
   AdminCustomers: undefined;
   AdminPayments: undefined;
+  AdminProfile: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -85,6 +87,15 @@ export const AdminTabNavigator = () => {
           tabBarLabel: 'المدفوعات',
           headerTitle: 'المدفوعات',
           tabBarIcon: ({ color, size }) => <CreditCard size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="AdminProfile"
+        component={AdminProfileScreen}
+        options={{
+          tabBarLabel: 'حسابي',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <CircleUser size={size} color={color} />,
         }}
       />
     </Tab.Navigator>

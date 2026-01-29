@@ -35,12 +35,23 @@ const baseQueryWith401Handler: BaseQueryFn<string | FetchArgs, unknown, FetchBas
 
   // Check for 401 Unauthorized
   if (result.error && result.error.status === 401) {
+    // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED specific error
+    const errorData = result.error.data as { error?: string } | undefined;
+    const errorCode = errorData?.error;
+    
     if (!isLoggingOut) {
       isLoggingOut = true;
 
       if (__DEV__) {
-        console.log('[API] 401 Unauthorized - BEFORE dispatch(logout)');
+        if (errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
+          console.log('[API] 401 ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED - forcing logout');
+        } else {
+          console.log('[API] 401 Unauthorized - BEFORE dispatch(logout)');
+        }
       }
+
+      // Clear token from SecureStore
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
 
       // Dispatch logout to clear auth state
       api.dispatch(logout());
@@ -309,6 +320,30 @@ export const apiSlice = createApi({
         body,
       }),
       invalidatesTags: ['Me'],
+    }),
+
+    // POST /v1/me/bootstrap - Bootstrap user after Auth0 login
+    bootstrapMe: builder.mutation<
+      { ok: boolean; me: { id: string; email: string; fullName: string; role: string; profileCompleted: boolean; subscriptionStatus: string; createdAt: string } },
+      void
+    >({
+      query: () => ({
+        url: '/me/bootstrap',
+        method: 'POST',
+      }),
+      invalidatesTags: ['Me'],
+    }),
+
+    // DELETE /v1/me - Delete account and personal data
+    deleteMe: builder.mutation<
+      { ok: boolean; auth0Deleted: boolean },
+      void
+    >({
+      query: () => ({
+        url: '/me',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Me', 'MySubscription', 'MyUsage', 'PaymentSubmissions', 'Reservations'],
     }),
 
     // ============================================
@@ -1130,6 +1165,8 @@ export const {
   usePatchMeMutation,
   usePatchMyHealthMutation,
   usePatchMeFullMutation,
+  useBootstrapMeMutation,
+  useDeleteMeMutation,
   // Subscription hooks
   useGetSubscriptionPlansQuery,
   useGetMySubscriptionQuery,

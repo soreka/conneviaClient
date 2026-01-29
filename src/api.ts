@@ -37,3 +37,36 @@ api.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
+// Global response interceptor to handle ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
+// This is called when a deleted user tries to make any API request
+let isHandlingDeletedAccount = false; // Prevent multiple logout attempts
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const errorCode = error?.response?.data?.error;
+    const statusCode = error?.response?.status;
+    
+    // Handle deleted/not-bootstrapped account - force logout
+    if (statusCode === 401 && errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
+      if (!isHandlingDeletedAccount) {
+        isHandlingDeletedAccount = true;
+        console.error('[API] ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED - forcing logout');
+        
+        // Clear token from SecureStore
+        await setAccessToken(null);
+        
+        // Note: Navigation to Login is handled by RootNavigator watching auth state
+        // The redux logout will be dispatched by the component that catches this error
+        
+        // Reset flag after a short delay to allow retry if needed
+        setTimeout(() => {
+          isHandlingDeletedAccount = false;
+        }, 2000);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
