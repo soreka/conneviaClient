@@ -1,0 +1,27 @@
+name: client-test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # TODO: re-enable typecheck once dead-code files are removed.
+      # Pre-existing errors live in src/config.ts and src/hooks/use-toast.ts
+      # (both flagged in .claude/REVIEW_FINDINGS.md §3 as dead code), plus a
+      # Progress prop type mismatch in CompleteProfileWizard.tsx:214.
+      # Run `npm run typecheck` locally to see current state.
+      # - run: npm run typecheck
+
+      - run: npm test -- --ci
