@@ -95,7 +95,7 @@ const getEndTime = (startsAt: string, durationMin: number): string => {
 };
 
 const getTimeRange = (startsAt: string, durationMin: number): string => {
-  return `${getEndTime(startsAt, durationMin)} - ${formatTime(startsAt)}`;
+  return `${formatTime(startsAt)} - ${getEndTime(startsAt, durationMin)}`;
 };
 
 // ============================================
@@ -346,7 +346,7 @@ export const BookingWizardScreen: React.FC = () => {
   // Can proceed to next step
   const canProceed = () => {
     switch (step) {
-      case 1: return !!selectedDate && dayGroups.find(d => d.date === selectedDate)?.sessionsCount! > 0;
+      case 1: return !!selectedDate && (dayGroups.find(d => d.date === selectedDate)?.sessionsCount ?? 0) > 0;
       case 2: return !!selectedSessionId;
       case 3: return !!selectedBedNumber;
       case 4: return true;

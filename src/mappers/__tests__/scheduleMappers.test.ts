@@ -112,7 +112,7 @@ describe('normalizeTimeOrder', () => {
   // not a reversed-order error. The current implementation silently swaps
   // it to 00:30 -> 23:00. The intended behavior is to preserve the original
   // order (next-day semantics) or otherwise treat it as a crossover.
-  test.failing(
+  test(
     'CLIENT-2.5: cross-midnight session (23:00 -> 00:30) is preserved, not swapped',
     () => {
       const result = normalizeTimeOrder('23:00', '00:30');
@@ -235,7 +235,7 @@ describe('mapApiToSessionCore - zero-value preservation (CLIENT-2.3)', () => {
   // mapper currently uses `||` chains that coerce 0 to the next fallback.
   // The bug surfaces clearly when an alternate field name is present: the
   // explicit `capacity: 0` is discarded in favor of `capacityTotal`.
-  test.failing(
+  test(
     'CLIENT-2.3: capacity = 0 is preserved over alternate alias values',
     () => {
       const api = {
@@ -257,7 +257,7 @@ describe('mapApiToSessionCore - zero-value preservation (CLIENT-2.3)', () => {
   // CLIENT-2.3: durationMin of 0 should be preserved (instant slot semantics).
   // The current mapper does `api.durationMin || ... || 60` which coerces 0
   // to the 60-min default.
-  test.failing(
+  test(
     'CLIENT-2.3: durationMin = 0 is preserved, not defaulted to 60',
     () => {
       const api = {
@@ -361,7 +361,7 @@ describe('mapApiToAdminSessionDetails', () => {
   // CLIENT-2.4: Occupancy override should only fire when the source field
   // is absent. If the server says bookedCount=0 explicitly, an empty or stale
   // bookings array must not silently inflate the count.
-  test.failing(
+  test(
     'CLIENT-2.4: bookings.length only overrides when no occupancy field was provided',
     () => {
       const api = {

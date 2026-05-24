@@ -168,7 +168,7 @@ describe('BookingWizardScreen - canProceed (CLIENT-2.11)', () => {
   // the next button. This is hard to assert from outside today because
   // dates are selected by pressing DayCard children whose text we'd need
   // to know. Instead we make a structural assertion against the source.
-  test.failing(
+  test(
     'CLIENT-2.11: source uses `?? 0` instead of `!.>`',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -194,7 +194,7 @@ describe('BookingWizardScreen - time range rendering (CLIENT-1.1)', () => {
   // as CLIENT-2.11. The runtime test (rendered Session card showing
   // "10:00 - 11:00") would need much more wizard interaction than is
   // worth setting up here.
-  test.failing(
+  test(
     'CLIENT-1.1: getTimeRange returns start before end',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

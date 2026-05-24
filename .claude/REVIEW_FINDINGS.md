@@ -35,7 +35,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 
 ## 1. CRITICAL — visible to users / breaks the funnel
 
-### 1.1 Time ranges are displayed reversed everywhere
+### 1.1 Time ranges are displayed reversed everywhere [DONE 2026-05-24]
 - **Where:** `src/screens/Booking/BookingWizardScreen.tsx:98` — `getTimeRange` returns `` `${getEndTime(...)} - ${formatTime(...)}` ``.
 - **Why it matters:** Every session in the booking wizard reads "11:00 - 10:00". `MyBookings` formats start-end correctly, so the inconsistency is also confusing.
 - **Fix:** Swap to `` `${formatTime(startsAt)} - ${getEndTime(startsAt, durationMin)}` ``.
@@ -74,17 +74,17 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** Six `TextInput`s including multi-line health field — keyboard hides the lower inputs and submit button on smaller phones. Worse on the onboarding wizard, which is the *first* funnel step for a new user.
 - **Fix:** Wrap with `<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>` and add `keyboardShouldPersistTaps="handled"` to the ScrollView.
 
-### 2.3 Mappers falsy-coerce legitimate zero values
+### 2.3 Mappers falsy-coerce legitimate zero values [DONE 2026-05-24]
 - **Where:** `src/mappers/scheduleMappers.ts:191-211`.
 - **Why it matters:** `capacity: api.capacity || ... || 0` and `durationMin: api.durationMin || ... || 60` — when the server legitimately returns `0` (closed session, instant slot), the fallback kicks in.
 - **Fix:** Use `??` consistently (already done correctly for `bookedCount` at `:215`).
 
-### 2.4 Occupancy override mis-handles "zero bookings" sessions
+### 2.4 Occupancy override mis-handles "zero bookings" sessions [DONE 2026-05-24]
 - **Where:** `src/mappers/scheduleMappers.ts:286-290` — `mapApiToAdminSessionDetails` overrides `occupiedCount` from `bookings.length` when `occupiedCount === 0`.
 - **Why it matters:** A legitimately empty session that includes a `bookings: []` array stays at 0 (fine), but if the server sends stale booking data with no occupancy field, the count gets silently inflated.
 - **Fix:** Make `mapApiToSessionCore` return a flag indicating whether occupancy was provided, and only fall back to `bookings.length` when no occupancy signal existed.
 
-### 2.5 Time order "normalizer" silently swaps cross-midnight sessions
+### 2.5 Time order "normalizer" silently swaps cross-midnight sessions [DONE 2026-05-24]
 - **Where:** `src/mappers/scheduleMappers.ts:99-118`.
 - **Why it matters:** A 23:00–00:30 session has `startMinutes > endMinutes` and gets reversed to 00:30–23:00.
 - **Fix:** Treat `endMinutes < startMinutes` as next-day crossover, not a reversal. Or assert this case never reaches the mapper and warn loudly if it does.
@@ -113,7 +113,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** If `request` is null when `response.type === 'success'` somehow arrives, this throws an opaque TypeError instead of a translated user-facing error.
 - **Fix:** Early-return with a translated error if `!request?.codeVerifier`.
 
-### 2.11 `BookingWizardScreen` step-1 `canProceed` is brittle
+### 2.11 `BookingWizardScreen` step-1 `canProceed` is brittle [DONE 2026-05-24]
 - **Where:** `src/screens/Booking/BookingWizardScreen.tsx:349` — `!!selectedDate && dayGroups.find(...)?.sessionsCount! > 0`.
 - **Fix:** Rewrite as `(dayGroups.find(d => d.date === selectedDate)?.sessionsCount ?? 0) > 0`.
 

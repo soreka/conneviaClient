@@ -29,16 +29,16 @@ jest.mock('../../config/env', () => ({
 // expo-auth-session - stub the hooks/functions useAuth depends on.
 // Each mock exposes a jest.fn() so tests can configure return values
 // and assert call arguments.
-const mockExchangeCodeAsync = jest.fn();
-const mockRefreshAsync = jest.fn();
-const mockMakeRedirectUri = jest.fn(() => 'connevia://login-callback');
+const mockExchangeCodeAsync: jest.Mock<any, any> = jest.fn();
+const mockRefreshAsync: jest.Mock<any, any> = jest.fn();
+const mockMakeRedirectUri: jest.Mock<string, any> = jest.fn(() => 'connevia://login-callback');
 // Stable discovery reference so the response-handling useEffect doesn't
 // see a new dep object every render.
 const stableDiscovery = {
   authorizationEndpoint: 'https://test.auth0.com/authorize',
   tokenEndpoint: 'https://test.auth0.com/oauth/token',
 };
-const mockUseAutoDiscovery = jest.fn(() => stableDiscovery);
+const mockUseAutoDiscovery: jest.Mock<any, any> = jest.fn(() => stableDiscovery);
 // useAuthRequest returns a 3-tuple [request, response, promptAsync].
 // Tests can set these via `setAuthRequestState`.
 //
@@ -60,7 +60,7 @@ let authRequestState: {
 function setAuthRequestState(next: Partial<typeof authRequestState>) {
   authRequestState = { ...authRequestState, ...next };
 }
-const mockUseAuthRequest = jest.fn(() => {
+const mockUseAuthRequest: jest.Mock<any[], any> = jest.fn(() => {
   const req = authRequestState.freshRequestEachRender
     ? { ...authRequestState.request }
     : authRequestState.request;
@@ -77,10 +77,10 @@ jest.mock('expo-auth-session', () => ({
 
 // Mock the axios instance + helpers so useAuth's `await api.post(...)` and
 // `setAccessToken(...)` are observable and never hit the network.
-const mockApiPost = jest.fn();
-const mockApiGet = jest.fn();
-const mockSetAccessToken = jest.fn();
-const mockGetAccessToken = jest.fn();
+const mockApiPost: jest.Mock<any, any> = jest.fn();
+const mockApiGet: jest.Mock<any, any> = jest.fn();
+const mockSetAccessToken: jest.Mock<any, any> = jest.fn();
+const mockGetAccessToken: jest.Mock<any, any> = jest.fn();
 jest.mock('../../api', () => ({
   api: {
     post: (...args: any[]) => mockApiPost(...args),
@@ -278,7 +278,8 @@ describe('useAuth - refresh token scope (CLIENT-1.2)', () => {
     'CLIENT-1.2: useAuthRequest is called with offline_access scope',
     () => {
       renderHook(() => useAuth());
-      const firstCallArgs = mockUseAuthRequest.mock.calls[0]?.[0];
+      const firstCall = (mockUseAuthRequest.mock.calls as any[])[0];
+      const firstCallArgs = firstCall?.[0] as { scopes?: string[] } | undefined;
       expect(firstCallArgs?.scopes).toContain('offline_access');
     }
   );

@@ -94,7 +94,13 @@ export const calculateEndTime = (startTimeISO: string, durationMin: number): str
 };
 
 /**
- * Ensure startTime < endTime, swap if reversed
+ * Ensure startTime < endTime, distinguishing two cases when start > end:
+ *   - reversal (user entered them backwards) → swap
+ *   - cross-midnight crossover (e.g. 23:00 → 00:30) → preserve as-is
+ *
+ * Heuristic: if the *forward* distance from start to end (going through
+ * midnight) is < 6 hours, it's a session that legitimately ends next day.
+ * Otherwise it's a reversal mistake and we swap.
  */
 export const normalizeTimeOrder = (
   startTime: string,
@@ -102,19 +108,27 @@ export const normalizeTimeOrder = (
 ): { startTime: string; endTime: string; wasReversed: boolean } => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
-  
+
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  
-  if (startMinutes >= endMinutes) {
-    return {
-      startTime: endTime,
-      endTime: startTime,
-      wasReversed: true,
-    };
+
+  if (startMinutes <= endMinutes) {
+    return { startTime, endTime, wasReversed: false };
   }
-  
-  return { startTime, endTime, wasReversed: false };
+
+  // startMinutes > endMinutes — either crossover or reversal.
+  const forwardDistanceMin = (24 * 60 - startMinutes) + endMinutes;
+  if (forwardDistanceMin < 6 * 60) {
+    // Cross-midnight session — preserve next-day semantics.
+    return { startTime, endTime, wasReversed: false };
+  }
+
+  // Reversal — user entered the times backwards.
+  return {
+    startTime: endTime,
+    endTime: startTime,
+    wasReversed: true,
+  };
 };
 
 /**
@@ -184,13 +198,16 @@ export const mapApiToSessionCore = (api: any): SessionCore => {
   const startsAt = api.startsAt || api.starts_at || api.startTime || '';
   const startTime = formatTimeTo24h(startsAt);
   
-  // Calculate end time from duration or use provided endTime
+  // Calculate end time from duration or use provided endTime.
+  // Use ?? so explicit zero values (0-minute "instant" slots) are preserved
+  // rather than coerced to the 60-min default. (Review CLIENT-2.3.)
   let endTime: string;
-  if (api.endTime || api.ends_at || api.endsAt) {
-    endTime = formatTimeTo24h(api.endTime || api.ends_at || api.endsAt);
-  } else if (api.durationMin || api.duration_min || api.duration) {
-    const duration = api.durationMin || api.duration_min || api.duration || 60;
-    endTime = calculateEndTime(startsAt, duration);
+  const explicitEndTime = api.endTime ?? api.ends_at ?? api.endsAt;
+  const apiDuration = api.durationMin ?? api.duration_min ?? api.duration;
+  if (explicitEndTime !== undefined && explicitEndTime !== null) {
+    endTime = formatTimeTo24h(explicitEndTime);
+  } else if (apiDuration !== undefined && apiDuration !== null) {
+    endTime = calculateEndTime(startsAt, apiDuration);
   } else {
     endTime = calculateEndTime(startsAt, 60); // Default 60 min
   }
@@ -207,8 +224,11 @@ export const mapApiToSessionCore = (api: any): SessionCore => {
   // Infer session type
   const type = api.type ? (api.type as SessionType) : inferSessionType(title);
   
-  // Get capacity and occupied count
-  const capacityTotal = api.capacity || api.capacityTotal || api.total_capacity || 0;
+  // Get capacity and occupied count.
+  // Use ?? so an explicit capacity of 0 (a "closed" session) is preserved
+  // rather than coerced to a stale capacityTotal/total_capacity alias.
+  // (Review CLIENT-2.3.)
+  const capacityTotal = api.capacity ?? api.capacityTotal ?? api.total_capacity ?? 0;
   
   // Derive occupiedCount - prefer bookedCount, fallback to capacity - availableSeats
   let rawOccupied: number;
@@ -281,10 +301,20 @@ export const mapApiToAdminSessionDetails = (api: any): AdminSessionDetails => {
   // Map bookings array
   const rawBookings = api.bookings || api.reservations || [];
   const bookings: BookingDetails[] = rawBookings.map(mapApiToBookingDetails);
-  
-  // If occupiedCount wasn't set by API, derive from bookings length
+
+  // Only fall back to bookings.length when the API gave us no occupancy
+  // signal at all. An explicit `bookedCount: 0` (or `availableSeats: capacity`)
+  // means the session is genuinely empty and a stale bookings array must
+  // not silently inflate the count. (Review CLIENT-2.4.)
+  const hadOccupancySignal =
+    typeof api.bookedCount === 'number' ||
+    typeof api.booked_count === 'number' ||
+    typeof api.occupiedCount === 'number' ||
+    typeof api.availableSeats === 'number' ||
+    typeof api.available_seats === 'number';
+
   let occupiedCount = core.occupiedCount;
-  if (occupiedCount === 0 && bookings.length > 0) {
+  if (!hadOccupancySignal && bookings.length > 0) {
     const { occupiedCount: derived } = clampOccupiedCount(bookings.length, core.capacityTotal);
     occupiedCount = derived;
   }
