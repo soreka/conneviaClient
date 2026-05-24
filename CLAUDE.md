@@ -1,5 +1,8 @@
 # Connevia Mobile
 
+> **Project state lives in `../STATUS.md`** (workspace level). Read it before any session start.
+> **Backlog of findings** lives in `.claude/REVIEW_FINDINGS.md` (this repo). Read it before fixing anything.
+
 React Native (Expo) mobile app for the Connevia / Hayazmiro Studio pilates booking system.
 
 - **Ships to:** Apple App Store + Google Play (via EAS). iOS bundle ID `com.hayazmiro.studio`. Next planned step: `eas build -p ios --profile production` → TestFlight → App Store.
