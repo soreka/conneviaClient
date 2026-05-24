@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, Alert, Pressable } from 'react-native';
+import { View, Text, Alert, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Phone, Mail, HeartPulse, ArrowRight } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -167,6 +167,10 @@ export const CompleteProfileWizard: React.FC = () => {
 
   return (
     <Screen scroll safe className="bg-transparent">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
       {/* Full-page gradient EXACTLY like Register design spec */}
       <LinearGradient
         colors={['#FCE8F0', '#FFFFFF']}
@@ -319,6 +323,7 @@ export const CompleteProfileWizard: React.FC = () => {
           </View>
         </View>
       </LinearGradient>
+      </KeyboardAvoidingView>
     </Screen>
   );
 };

@@ -151,7 +151,7 @@ describe('CompleteProfileWizard - CLIENT-2.2: KeyboardAvoidingView', () => {
   // CLIENT-2.2: Step 2 has 3 inputs including a multi-line health-status
   // field. Without KeyboardAvoidingView the submit button is hidden behind
   // the keyboard on smaller iPhones.
-  test.failing(
+  test(
     'CLIENT-2.2: wizard wraps content in KeyboardAvoidingView',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

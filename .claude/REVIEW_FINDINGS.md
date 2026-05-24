@@ -64,12 +64,12 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 
 ## 2. SERIOUS — silent corruption / dead-end UX
 
-### 2.1 Profile screen has two dead tappable elements
+### 2.1 Profile screen has two dead tappable elements [DONE 2026-05-24]
 - **Where:** `src/screens/ProfileScreen.tsx:301` (back chevron `onPress={() => {}}`) and `:322` (camera avatar overlay with no `onPress`).
 - **Why it matters:** Both look tappable. Users tap, nothing happens.
 - **Fix:** Either remove them entirely (Profile is a root tab, so the back arrow shouldn't exist) or wire them — back to Dashboard, camera to an image picker.
 
-### 2.2 `KeyboardAvoidingView` missing on Profile and onboarding wizard
+### 2.2 `KeyboardAvoidingView` missing on Profile and onboarding wizard [DONE 2026-05-24]
 - **Where:** `src/screens/ProfileScreen.tsx` (entire ScrollView), `src/screens/CompleteProfileWizard.tsx` Step 2.
 - **Why it matters:** Six `TextInput`s including multi-line health field — keyboard hides the lower inputs and submit button on smaller phones. Worse on the onboarding wizard, which is the *first* funnel step for a new user.
 - **Fix:** Wrap with `<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>` and add `keyboardShouldPersistTaps="handled"` to the ScrollView.

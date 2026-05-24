@@ -174,7 +174,7 @@ describe('ProfileScreen - CLIENT-2.1: dead tap targets', () => {
   // The fix is either to remove them entirely (Profile is a root tab, so
   // a back arrow makes no sense) or wire them up to a real action.
   // We assert the dead patterns are gone from the source.
-  test.failing(
+  test(
     'CLIENT-2.1: back chevron does not have an empty onPress handler',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -191,7 +191,7 @@ describe('ProfileScreen - CLIENT-2.1: dead tap targets', () => {
     }
   );
 
-  test.failing(
+  test(
     'CLIENT-2.1: camera avatar overlay has an onPress handler',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -218,7 +218,7 @@ describe('ProfileScreen - CLIENT-2.2: KeyboardAvoidingView missing', () => {
   // CLIENT-2.2: the screen contains six TextInputs (including a multiline
   // health-status field). With the keyboard up on a smaller device the
   // bottom fields and the save buttons are hidden.
-  test.failing(
+  test(
     'CLIENT-2.2: screen wraps content in KeyboardAvoidingView',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

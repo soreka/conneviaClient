@@ -1,6 +1,6 @@
 // src/screens/ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, Alert, ActivityIndicator, Pressable, Linking, ScrollView, TextInput } from 'react-native';
+import { View, Text, Alert, ActivityIndicator, Pressable, Linking, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -280,7 +280,11 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+    >
+      <View className="flex-1 bg-[#FAFAFA]">
       {/* Gradient Header */}
       <LinearGradient
         colors={['#A68CD4', 'rgba(166,140,212,0.8)']}
@@ -294,14 +298,10 @@ export const ProfileScreen = () => {
         }}
       >
         <View className="px-4">
-          {/* Header Bar */}
+          {/* Header Bar — Profile is a root tab, no back navigation needed.
+              The two w-10 spacers keep the title visually centered. */}
           <View className="flex-row-reverse items-center justify-between mb-6 p-2">
-            <Pressable
-              className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
-              onPress={() => {}}
-            >
-              <ArrowRight size={20} color="#FFFFFF" />
-            </Pressable>
+            <View className="w-10" />
             <Text className="text-2xl font-bold text-white">الملف الشخصي</Text>
             <View className="w-10" />
           </View>
@@ -318,10 +318,6 @@ export const ProfileScreen = () => {
                     <UserIcon size={40} color="#FFFFFF" />
                   )}
                 </View>
-                {/* Camera overlay button */}
-                <Pressable className="absolute bottom-0 left-0 w-8 h-8 rounded-full bg-white items-center justify-center shadow-sm">
-                  <Camera size={16} color="#A68CD4" />
-                </Pressable>
               </View>
 
               {/* Name & Phone */}
@@ -764,7 +760,8 @@ export const ProfileScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
