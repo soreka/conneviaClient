@@ -45,7 +45,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** No refresh token is issued, so every request after ~1 hr returns 401 until the user logs in again.
 - **Fix:** Add `offline_access` to scopes in `useAuth.ts`. Store `tokenResponse.refreshToken` in SecureStore under a separate key (e.g. `connevia.refresh_token`). Add a 401 handler in `api.ts` that calls `AuthSession.refreshAsync` and retries once, with a request queue to avoid stampedes when multiple requests 401 concurrently.
 
-### 1.3 Duplicate token exchange on login
+### 1.3 Duplicate token exchange on login [DONE 2026-05-25]
 - **Where:** `src/auth/useAuth.ts:75-174`.
 - **Why it matters:** The `useEffect` deps include `request`, which is a new object reference on every render of `useAuthRequest`. The effect re-fires; `exchangeCodeAsync` runs twice; Auth0 rejects the second use of the same auth code → user sees a spurious "login failed" toast.
 - **Fix:** Drop `request` from the dep array and capture `request?.codeVerifier` in a ref. Or guard with a `hasExchanged` ref keyed on `response.params.code`.
@@ -55,10 +55,16 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** Each consumer of `useAuth` gets its own copy. After app restart, SecureStore token survives but in-memory `user` is gone. The Redux auth slice in `src/features/api/` is the intended source but the hook doesn't dispatch to it.
 - **Fix:** Make `useAuth` dispatch login/logout to Redux. Components should read auth state from `useSelector` against the auth slice, not from `useAuth`.
 
-### 1.5 JWT and full Auth0 response logged unconditionally
+### 1.5 JWT and full Auth0 response logged unconditionally [DONE 2026-05-25]
 - **Where:** `src/auth/useAuth.ts:108` (`console.log("Token response from Auth0:", tokenResponse)`), and similar at `:146`, `:238`.
 - **Why it matters:** Production release builds will leak the access token, id token, and decoded user PII to whatever log aggregator picks up console output.
 - **Fix:** Wrap in `if (__DEV__) { ... }`, and even in dev log only `Object.keys(tokenResponse)`, not the full object.
+
+### 1.6 Redirect URI scheme is hardcoded to the OLD app scheme — login WILL fail on production builds [DONE 2026-05-25]
+- **Where:** `src/auth/useAuth.ts:50-51` — `AuthSession.makeRedirectUri({ scheme: 'connevia', path: 'login-callback' })`.
+- **Why it matters:** `app.json:37` declares `"scheme": "hayazmiro-studio"` (renamed when the app was rebranded), and the Auth0 dashboard allowed-callback list was verified on 2026-05-25 to contain `hayazmiro-studio://login-callback`. But this code still generates `connevia://login-callback`. On a production/standalone EAS build the OS only registers the `hayazmiro-studio://` scheme, so the OAuth redirect never returns to the app — **login silently fails for 100% of users.** This does NOT reproduce in Expo Go (which uses the `exp://` proxy scheme) and is masked by the `expo-auth-session` mock in the test suite, which is why it survived to now. Blocks TestFlight harder than CLIENT-1.2: it bites at the login screen, before any session-expiry path is reached.
+- **Fix:** Do not hardcode the scheme. Either omit `scheme` and let `makeRedirectUri` derive it from `app.json` (preferred — `makeRedirectUri({ path: 'login-callback' })` reads the manifest scheme), or read it from `Constants.expoConfig?.scheme`. The literal `'connevia'` must not survive. Also update the stale comment at `:48` ("generates: connevia://login-callback").
+- **Severity:** CRITICAL — launch blocker.
 
 ---
 

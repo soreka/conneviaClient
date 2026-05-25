@@ -248,7 +248,7 @@ describe('useAuth - duplicate token exchange (CLIENT-1.3)', () => {
   // for the response-handling effect does NOT list `request`. This avoids
   // an OOM infinite-render loop that we cannot bound from inside a hook
   // test (each render of the buggy hook spawns another effect/exchange).
-  test.failing(
+  test(
     'CLIENT-1.3: useAuth.ts response-handling effect does not depend on `request`',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -274,7 +274,7 @@ describe('useAuth - refresh token scope (CLIENT-1.2)', () => {
   // CLIENT-1.2: the auth request is built with scopes
   // ["openid", "profile", "email"] - no offline_access, so Auth0 will not
   // issue a refresh token and the session silently dies after ~1 hour.
-  test.failing(
+  test(
     'CLIENT-1.2: useAuthRequest is called with offline_access scope',
     () => {
       renderHook(() => useAuth());
@@ -293,7 +293,7 @@ describe('useAuth - JWT logging (CLIENT-1.5)', () => {
   //
   // Intended: the log is gated behind __DEV__ AND, in dev, only metadata
   // (Object.keys, type, ...) is logged - never the raw token strings.
-  test.failing(
+  test(
     'CLIENT-1.5: access token is never passed to console.log',
     async () => {
       const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -352,7 +352,7 @@ describe('useAuth - redirect URI scheme (CLIENT-1.6)', () => {
   // redirect URI never reflects the real scheme. The only assertion that
   // survives the mock is reading the useAuth.ts source directly, mirroring
   // the CLIENT-1.3 pattern above.
-  test.failing(
+  test(
     'CLIENT-1.6: redirect URI scheme is not the stale "connevia" literal (matches app.json)',
     () => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

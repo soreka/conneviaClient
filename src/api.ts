@@ -4,6 +4,9 @@ import * as SecureStore from "expo-secure-store";
 import { ENV } from "./config/env";
 
 const TOKEN_KEY = "connevia.access_token";
+// CLIENT-1.2: the Auth0 refresh token lives in a SEPARATE SecureStore slot so it
+// survives access-token rotation and can be used to renew the session silently.
+const REFRESH_TOKEN_KEY = "connevia.refresh_token";
 
 export async function getAccessToken(): Promise<string | null> {
   return SecureStore.getItemAsync(TOKEN_KEY);
@@ -19,6 +22,24 @@ export async function setAccessToken(token: string | null): Promise<void> {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     if (__DEV__) {
       console.log('[Auth] DELETED token from SecureStore, key=', TOKEN_KEY);
+    }
+  }
+}
+
+export async function getRefreshToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+}
+
+export async function setRefreshToken(token: string | null): Promise<void> {
+  if (token) {
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    if (__DEV__) {
+      console.log('[Auth] SAVED refresh token to SecureStore, key=', REFRESH_TOKEN_KEY, 'success=true');
+    }
+  } else {
+    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    if (__DEV__) {
+      console.log('[Auth] DELETED refresh token from SecureStore, key=', REFRESH_TOKEN_KEY);
     }
   }
 }

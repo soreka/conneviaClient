@@ -44,15 +44,19 @@ export function useAuth(): UseAuthResult {
   // 2) Discover Auth0 endpoints (authorize, token, etc.)
   const discovery = AuthSession.useAutoDiscovery(`https://${ENV.AUTH0_DOMAIN}`);
 
-  // 3) Redirect URI – use scheme-based URI for stable callback across IP changes
-  // This generates: connevia://login-callback (from app.json scheme)
+  // 3) Redirect URI – derive the scheme from app.json (do NOT hardcode it).
+  // makeRedirectUri reads the manifest scheme, so this produces
+  // `<app.json scheme>://login-callback` (currently hayazmiro-studio://login-callback).
+  // Hardcoding the scheme caused CLIENT-1.6: a stale `connevia://` literal that
+  // breaks login on standalone/EAS builds where only the manifest scheme is registered.
   const redirectUri = React.useMemo(() => {
     const uri = AuthSession.makeRedirectUri({
-      scheme: 'connevia',
       path: 'login-callback',
     });
     // Log on boot so we can copy-paste the exact URL for Auth0 dashboard
-    console.log('[AUTH BOOT] redirectUri =', uri);
+    if (__DEV__) {
+      console.log('[AUTH BOOT] redirectUri =', uri);
+    }
     return uri;
   }, []);
 
@@ -62,7 +66,9 @@ export function useAuth(): UseAuthResult {
     {
       clientId: ENV.AUTH0_CLIENT_ID,
       redirectUri,
-      scopes: ["openid", "profile", "email"],
+      // CLIENT-1.2: offline_access tells Auth0 to issue a refresh token so the
+      // session can be renewed silently instead of dying ~1h after login.
+      scopes: ["openid", "profile", "email", "offline_access"],
       extraParams: {
         audience: ENV.AUTH0_AUDIENCE,
         prompt: "login", // Force fresh login, bypass cached session
@@ -70,6 +76,15 @@ export function useAuth(): UseAuthResult {
     },
     discovery
   );
+
+  // CLIENT-1.3: `request` gets a new object identity on every render of
+  // useAuthRequest. Listing it in the response-handling effect's deps made the
+  // effect re-fire and call exchangeCodeAsync twice for the same auth code,
+  // which Auth0 rejects -> spurious "login failed". We capture the PKCE
+  // codeVerifier in a ref (kept fresh each render) so we can read it inside the
+  // effect without depending on `request` identity.
+  const codeVerifierRef = React.useRef<string | undefined>(request?.codeVerifier);
+  codeVerifierRef.current = request?.codeVerifier;
 
   // 5) Handle the response: if we get an authorization code, exchange it for tokens
   React.useEffect(() => {
@@ -99,13 +114,18 @@ export function useAuth(): UseAuthResult {
             redirectUri,
             extraParams: {
               audience: ENV.AUTH0_AUDIENCE,
-              // PKCE secret generated for this request
-              code_verifier: request?.codeVerifier!,
+              // PKCE secret generated for this request (read via ref so the
+              // effect doesn't depend on `request`'s render identity — CLIENT-1.3)
+              code_verifier: codeVerifierRef.current!,
             },
           },
           discovery
         );
-        console.log("Token response from Auth0:", tokenResponse);
+        // CLIENT-1.5: never log the raw tokenResponse (contains access/id tokens + PII).
+        // Even in dev, log only the metadata (which keys were returned).
+        if (__DEV__) {
+          console.log("Token response from Auth0 (keys):", Object.keys(tokenResponse));
+        }
         const access = tokenResponse.accessToken ?? null;
 
         if (__DEV__) {
@@ -143,7 +163,9 @@ export function useAuth(): UseAuthResult {
               email: me.email,
               role: normalizeRole(me.role),
             };
-            console.log("User bootstrapped from /v1/me/bootstrap:", user);
+            if (__DEV__) {
+              console.log("User bootstrapped from /v1/me/bootstrap:", { id: user.id, role: user.role });
+            }
             setState({ accessToken: access, user, isLoading: false, error: null });
           } catch (bootstrapError: unknown) {
             // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
@@ -171,7 +193,7 @@ export function useAuth(): UseAuthResult {
         setState({ accessToken: null, user : null , isLoading: false, error: message });
       }
     })();
-  }, [response, discovery, redirectUri, request]);
+  }, [response, discovery, redirectUri]);
 
   // 6) Public functions: login, logout, refreshMe
 
@@ -235,7 +257,9 @@ export function useAuth(): UseAuthResult {
         ...rawUser,
         role: normalizeRole(rawUser.role),
       };
-      console.log("Me", user);
+      if (__DEV__) {
+        console.log("Me", { id: user.id, role: user.role });
+      }
       setState((prev) => ({ ...prev, user, isLoading: false, error: null }));
     } catch (e: unknown) {
       // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
