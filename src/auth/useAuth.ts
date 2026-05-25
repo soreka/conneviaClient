@@ -2,7 +2,7 @@ import * as React from "react";
 // Role: Local Auth0 login state machine (handles browser flow, token exchange, and /v1/auth/me for Login screen).
 import * as AuthSession from "expo-auth-session";
 import { ENV } from "../config/env";
-import { setAccessToken, getAccessToken, api } from "../api";
+import { setAccessToken, setRefreshToken, getAccessToken, api } from "../api";
 import { normalizeRole, decodeAccessToken, ROLE_CLAIM } from "../utils/tokenUtils";
 
 // What auth state we care about in the UI
@@ -150,6 +150,11 @@ export function useAuth(): UseAuthResult {
         }
 
         await setAccessToken(access);
+
+        // CLIENT-1.2: persist the refresh token (issued because of the
+        // offline_access scope) in its own SecureStore slot so the api.ts 401
+        // interceptor can silently renew the session. Never log the value.
+        await setRefreshToken(tokenResponse.refreshToken ?? null);
 
         // Bootstrap user in MongoDB after getting Auth0 token
         // This is the ONLY place that can create users - ensures GDPR-compliant deletion works

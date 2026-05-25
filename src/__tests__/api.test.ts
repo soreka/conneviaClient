@@ -163,7 +163,7 @@ describe('response interceptor - ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED', () => {
   // CLIENT-1.2: when the access token expires (generic 401), the client
   // should attempt a refresh via expo-auth-session and retry the original
   // request once. Today it just bubbles the 401 up; the user sees a logout.
-  test.failing(
+  test(
     'CLIENT-1.2: generic 401 triggers refresh-and-retry once',
     async () => {
       mockGetItem.mockResolvedValue('tok-expired');

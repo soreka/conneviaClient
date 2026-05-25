@@ -40,7 +40,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** Every session in the booking wizard reads "11:00 - 10:00". `MyBookings` formats start-end correctly, so the inconsistency is also confusing.
 - **Fix:** Swap to `` `${formatTime(startsAt)} - ${getEndTime(startsAt, durationMin)}` ``.
 
-### 1.2 Auth0 sessions silently die after access-token expiry
+### 1.2 Auth0 sessions silently die after access-token expiry [DONE 2026-05-25]
 - **Where:** `src/auth/useAuth.ts:61-72` requests scopes `openid profile email` only (no `offline_access`); `src/api.ts:45-72` only catches the `ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED` path on 401, not generic expiry.
 - **Why it matters:** No refresh token is issued, so every request after ~1 hr returns 401 until the user logs in again.
 - **Fix:** Add `offline_access` to scopes in `useAuth.ts`. Store `tokenResponse.refreshToken` in SecureStore under a separate key (e.g. `connevia.refresh_token`). Add a 401 handler in `api.ts` that calls `AuthSession.refreshAsync` and retries once, with a request queue to avoid stampedes when multiple requests 401 concurrently.
