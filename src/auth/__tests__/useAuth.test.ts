@@ -81,6 +81,13 @@ const mockApiPost: jest.Mock<any, any> = jest.fn();
 const mockApiGet: jest.Mock<any, any> = jest.fn();
 const mockSetAccessToken: jest.Mock<any, any> = jest.fn();
 const mockGetAccessToken: jest.Mock<any, any> = jest.fn();
+// setRefreshToken/getRefreshToken are exported by api.ts (CLIENT-1.2
+// scope-half). The implementer will soon wire setRefreshToken(...) into
+// useAuth's login-success path; without these on the mock that call would
+// throw `setRefreshToken is not a function` and break the happy-path test.
+// Purely additive — no current test reads these.
+const mockSetRefreshToken: jest.Mock<any, any> = jest.fn();
+const mockGetRefreshToken: jest.Mock<any, any> = jest.fn();
 jest.mock('../../api', () => ({
   api: {
     post: (...args: any[]) => mockApiPost(...args),
@@ -88,6 +95,8 @@ jest.mock('../../api', () => ({
   },
   setAccessToken: (...args: any[]) => mockSetAccessToken(...args),
   getAccessToken: (...args: any[]) => mockGetAccessToken(...args),
+  setRefreshToken: (...args: any[]) => mockSetRefreshToken(...args),
+  getRefreshToken: (...args: any[]) => mockGetRefreshToken(...args),
 }));
 
 // jwt-decode is referenced via tokenUtils.decodeAccessToken; stub it so
@@ -131,6 +140,8 @@ beforeEach(() => {
   mockApiGet.mockReset();
   mockSetAccessToken.mockReset();
   mockGetAccessToken.mockReset();
+  mockSetRefreshToken.mockReset();
+  mockGetRefreshToken.mockReset();
   mockUseAuthRequest.mockClear();
   mockMakeRedirectUri.mockClear();
   setAuthRequestState({

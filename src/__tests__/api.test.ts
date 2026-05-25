@@ -27,6 +27,27 @@ jest.mock('../config/env', () => ({
   },
 }));
 
+// Mock expo-auth-session so the (not-yet-built) 401 refresh-and-retry
+// interceptor's call to AuthSession.refreshAsync resolves SYNCHRONOUSLY and
+// off the network. The REAL refreshAsync attempts a DNS/fetch to the Auth0
+// token endpoint and rejects after ~10s, which would blow the 5s jest
+// timeout for the CLIENT-1.2 retry test below. This mock makes the seam
+// fast and network-safe (Production-safety guardrail: never hit real Auth0).
+//
+// `mockRefreshAsync` is exposed at module scope (mirroring `mockGetItem`)
+// so the retry test can assert it was called exactly once once the
+// interceptor lands. It resolves with a fresh token set.
+const mockRefreshAsync = jest.fn(async () => ({
+  accessToken: 'refreshed-access-token',
+  refreshToken: 'rotated-refresh-token',
+  issuedAt: Math.floor(Date.now() / 1000),
+  expiresIn: 3600,
+}));
+
+jest.mock('expo-auth-session', () => ({
+  refreshAsync: (...args: any[]) => mockRefreshAsync(...args),
+}));
+
 import MockAdapter from 'axios-mock-adapter';
 import * as SecureStore from 'expo-secure-store';
 
@@ -54,6 +75,15 @@ beforeEach(() => {
   mockGetItem.mockReset();
   mockSetItem.mockReset();
   mockDeleteItem.mockReset();
+  // Re-arm the refresh mock after the reset so the resolved token set
+  // is restored for each test (mockReset clears the implementation).
+  mockRefreshAsync.mockReset();
+  mockRefreshAsync.mockResolvedValue({
+    accessToken: 'refreshed-access-token',
+    refreshToken: 'rotated-refresh-token',
+    issuedAt: Math.floor(Date.now() / 1000),
+    expiresIn: 3600,
+  });
 });
 
 afterEach(() => {
