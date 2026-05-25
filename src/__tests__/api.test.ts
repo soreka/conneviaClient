@@ -37,7 +37,7 @@ jest.mock('../config/env', () => ({
 // `mockRefreshAsync` is exposed at module scope (mirroring `mockGetItem`)
 // so the retry test can assert it was called exactly once once the
 // interceptor lands. It resolves with a fresh token set.
-const mockRefreshAsync = jest.fn(async () => ({
+const mockRefreshAsync = jest.fn(async (..._args: unknown[]) => ({
   accessToken: 'refreshed-access-token',
   refreshToken: 'rotated-refresh-token',
   issuedAt: Math.floor(Date.now() / 1000),
@@ -45,7 +45,7 @@ const mockRefreshAsync = jest.fn(async () => ({
 }));
 
 jest.mock('expo-auth-session', () => ({
-  refreshAsync: (...args: any[]) => mockRefreshAsync(...args),
+  refreshAsync: (...args: unknown[]) => mockRefreshAsync(...args),
 }));
 
 import MockAdapter from 'axios-mock-adapter';
@@ -181,6 +181,8 @@ describe('response interceptor - ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED', () => {
       const res = await api.get('/v1/me');
       expect(res.status).toBe(200);
       expect(calls).toBe(2);
+      // Exactly one refresh fired for the single 401 (single-flight design).
+      expect(mockRefreshAsync).toHaveBeenCalledTimes(1);
     }
   );
 
