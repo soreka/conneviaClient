@@ -331,3 +331,58 @@ describe('useAuth - JWT logging (CLIENT-1.5)', () => {
     }
   );
 });
+
+describe('useAuth - redirect URI scheme (CLIENT-1.6)', () => {
+  // CLIENT-1.6 (LAUNCH BLOCKER): useAuth.ts:50-51 hardcodes
+  //   AuthSession.makeRedirectUri({ scheme: 'connevia', path: 'login-callback' })
+  // but app.json:37 declares "scheme": "hayazmiro-studio" (the app was
+  // rebranded) and the Auth0 dashboard allowed-callback list expects
+  // `hayazmiro-studio://login-callback`. On a production/standalone EAS build
+  // the OS only registers the `hayazmiro-studio://` scheme, so the OAuth
+  // redirect never returns and login fails for 100% of users.
+  //
+  // Intended behavior: the redirect URI scheme must NOT be the stale
+  // hardcoded 'connevia' literal. Preferred fix is to omit `scheme` entirely
+  // (makeRedirectUri derives it from app.json) or read it from
+  // Constants.expoConfig?.scheme. Either way the literal 'connevia' must not
+  // survive.
+  //
+  // SOURCE-REGEX assertion (not a runtime value): the `expo-auth-session`
+  // mock at the top of this file replaces makeRedirectUri, so the runtime
+  // redirect URI never reflects the real scheme. The only assertion that
+  // survives the mock is reading the useAuth.ts source directly, mirroring
+  // the CLIENT-1.3 pattern above.
+  test.failing(
+    'CLIENT-1.6: redirect URI scheme is not the stale "connevia" literal (matches app.json)',
+    () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const fs = require('fs');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const path = require('path');
+      const src = fs.readFileSync(
+        path.join(__dirname, '..', 'useAuth.ts'),
+        'utf8'
+      );
+
+      // Primary guard: the makeRedirectUri(...) call must NOT pass the stale
+      // `scheme: 'connevia'` literal. The buggy line currently reads:
+      //   AuthSession.makeRedirectUri({ scheme: 'connevia', path: 'login-callback' })
+      const staleSchemeLiteral =
+        /makeRedirectUri\([^)]*scheme:\s*['"]connevia['"]/s;
+      expect(src).not.toMatch(staleSchemeLiteral);
+
+      // Stronger positive guard (kept secondary so the test isn't brittle):
+      // IF a literal `scheme:` is still passed to makeRedirectUri, it must
+      // equal the scheme declared in app.json. If no literal scheme is passed
+      // (the preferred fix — derive from the manifest), this guard is a no-op.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const appScheme = require('../../../app.json').expo.scheme; // 'hayazmiro-studio'
+      const literalSchemeMatch = src.match(
+        /makeRedirectUri\([^)]*scheme:\s*['"]([^'"]+)['"]/s
+      );
+      if (literalSchemeMatch) {
+        expect(literalSchemeMatch[1]).toBe(appScheme);
+      }
+    }
+  );
+});
