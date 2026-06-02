@@ -38,7 +38,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('apiSlice rawBaseQuery — request timeout', () => {
-  test.failing(
+  test(
     'CLIENT-2.7b: RTK Query base query enforces a request timeout',
     () => {
       const apiSlicePath = path.resolve(

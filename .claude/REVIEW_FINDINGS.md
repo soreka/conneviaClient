@@ -105,7 +105,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** Flaky cellular connections leave requests hanging indefinitely. Users see infinite spinners.
 - **Fix:** `timeout: 15000` at minimum. If you add `axios-retry`, restrict to idempotent verbs (GET/HEAD); never auto-retry POSTs.
 
-### 2.7b RTK Query `fetchBaseQuery` has no timeout — the PRIMARY data path is still unbounded
+### 2.7b RTK Query `fetchBaseQuery` has no timeout — the PRIMARY data path is still unbounded [DONE 2026-06-02]
 - **Where:** `src/features/api/apiSlice.ts:17-26` (`rawBaseQuery = fetchBaseQuery({ baseUrl, prepareHeaders })`).
 - **Why it matters:** CLIENT-2.7 added a 15s timeout to the `axios` instance in `src/api.ts`, but that instance only serves two calls (`POST /v1/me/bootstrap` and `GET /v1/me` in `useAuth.ts`). Nearly all app data (~30 endpoints) flows through RTK Query, whose `fetchBaseQuery` has NO timeout — so the "flaky cellular → infinite spinner" symptom 2.7 was meant to kill is still live on almost every screen. Discovered 2026-06-02 by `connevia-orchestrator` during the CLIENT-2.7 push review.
 - **Fix:** add `timeout: 15000` to the `fetchBaseQuery({ ... })` options (RTK Query has a built-in `timeout` arg; on timeout it returns `{ error: { status: 'TIMEOUT_ERROR' } }`). Keep `baseUrl` and `prepareHeaders` unchanged. Do NOT touch the `baseQueryWith401Handler` wrapper or the `isLoggingOut` logic. No retry policy.
