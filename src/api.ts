@@ -48,6 +48,10 @@ export async function setRefreshToken(token: string | null): Promise<void> {
 // Create one Axios instance for the whole app
 export const api: AxiosInstance = axios.create({
   baseURL: ENV.API_URL,
+  // CLIENT-2.7: cap requests at 15s so flaky cellular connections cannot
+  // leave the UI hanging on an indefinite spinner. Retry policy is
+  // intentionally NOT added (POSTs must not auto-retry).
+  timeout: 15000,
 });
 
 // Attach Authorization: Bearer <token> if available

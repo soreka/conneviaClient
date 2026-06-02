@@ -100,7 +100,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Why it matters:** The whole point of a mapper layer is to *be* the boundary between untrusted API shapes and typed domain objects. `api: any` means callers downstream can rely on fields that may not exist.
 - **Fix:** Define `ApiSessionResponse` / `ApiBookingResponse` interfaces with optional fields, type the params with those, and let `as any` casts (if any) live at the call sites where the JSON enters.
 
-### 2.7 No request timeout, no retry policy
+### 2.7 No request timeout, no retry policy [DONE 2026-06-02]
 - **Where:** `src/api.ts:27-29`.
 - **Why it matters:** Flaky cellular connections leave requests hanging indefinitely. Users see infinite spinners.
 - **Fix:** `timeout: 15000` at minimum. If you add `axios-retry`, restrict to idempotent verbs (GET/HEAD); never auto-retry POSTs.

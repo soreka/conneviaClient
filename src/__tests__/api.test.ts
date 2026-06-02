@@ -228,7 +228,7 @@ describe('request timeout', () => {
   // CLIENT-2.7: axios instance has no `timeout` configured, so flaky
   // cellular connections leave requests hanging. Intended: at least
   // 15000 ms timeout.
-  test.failing(
+  test(
     'CLIENT-2.7: axios instance has a request timeout configured',
     () => {
       // `api.defaults.timeout` is `0` (no timeout) today.
