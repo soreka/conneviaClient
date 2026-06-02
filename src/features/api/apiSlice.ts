@@ -16,6 +16,7 @@ let isLoggingOut = false;
 // Base query with token injection
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: ENV.API_URL + '/v1',
+  timeout: 15000,
   prepareHeaders: async (headers) => {
     const token = await SecureStore.getItemAsync(TOKEN_KEY);
     if (token) {
