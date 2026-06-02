@@ -195,7 +195,7 @@ describe('response interceptor - ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED', () => {
   // effect: after a 401 deleted-account event, a *subsequent* 401 for the
   // same condition should still cause a token clear once the flag has
   // been reset.
-  test.failing(
+  test(
     'CLIENT-2.15: isHandlingDeletedAccount flag resets after a handler error',
     async () => {
       mockGetItem.mockResolvedValue('tok-deleted-1');

@@ -133,18 +133,21 @@ api.interceptors.response.use(
     if (statusCode === 401 && errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
       if (!isHandlingDeletedAccount) {
         isHandlingDeletedAccount = true;
-        console.error('[API] ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED - forcing logout');
+        try {
+          console.error('[API] ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED - forcing logout');
 
-        // Clear token from SecureStore
-        await setAccessToken(null);
+          // Clear token from SecureStore
+          await setAccessToken(null);
 
-        // Note: Navigation to Login is handled by RootNavigator watching auth state
-        // The redux logout will be dispatched by the component that catches this error
-
-        // Reset flag after a short delay to allow retry if needed
-        setTimeout(() => {
+          // Note: Navigation to Login is handled by RootNavigator watching auth state
+          // The redux logout will be dispatched by the component that catches this error
+        } finally {
+          // CLIENT-2.15: always reset the flag, even if setAccessToken throws.
+          // Reset is synchronous (not a setTimeout) so a subsequent deleted-account
+          // 401 can re-enter the handler immediately. The flag still prevents
+          // concurrent re-entry during the in-flight await above.
           isHandlingDeletedAccount = false;
-        }, 2000);
+        }
       }
       return Promise.reject(error);
     }

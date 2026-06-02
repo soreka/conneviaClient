@@ -136,7 +136,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 - **Where:** `src/screens/Admin/AdminCustomersScreen.tsx:84-94`.
 - **Fix:** Add `useEffect(() => () => searchTimeoutRef.current && clearTimeout(searchTimeoutRef.current), [])`.
 
-### 2.15 `isHandlingDeletedAccount` flag may not reset after error in handler
+### 2.15 `isHandlingDeletedAccount` flag may not reset after error in handler [DONE 2026-06-02]
 - **Where:** `src/api.ts:43-71`.
 - **Fix:** Use `try/finally` to ensure the flag and timer are always cleaned up.
 
