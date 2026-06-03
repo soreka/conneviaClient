@@ -166,11 +166,18 @@ export const CompleteProfileWizard: React.FC = () => {
       : 'هذه المعلومات تساعد المدربة على تخصيص التمرين لك';
 
   return (
-    <Screen scroll safe className="bg-transparent">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+    // C-UX-06: KeyboardAvoidingView is the TOP-LEVEL wrapper so it actually
+    // pushes the scroll surface (rendered by the Screen `scroll` variant)
+    // against the keyboard. Nesting the KAV inside the ScrollView (the
+    // previous shape) made it a no-op. We also drop the web-only Tailwind
+    // viewport-height class (NativeWind does not translate it) and forward
+    // `keyboardShouldPersistTaps="handled"` so taps on the submit button
+    // aren't swallowed while the keyboard is open.
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+    >
+      <Screen scroll safe className="bg-transparent" keyboardShouldPersistTaps="handled">
       {/* Full-page gradient EXACTLY like Register design spec */}
       <LinearGradient
         colors={['#FCE8F0', '#FFFFFF']}
@@ -178,7 +185,7 @@ export const CompleteProfileWizard: React.FC = () => {
         end={{ x: 0, y: 1 }}
         style={{ flex: 1 }}
       >
-        <View className="min-h-screen flex flex-col p-5">
+        <View className="flex flex-col p-5">
           {/* Header bar like Register */}
           <View className="flex-row items-center justify-between py-4">
             <Pressable
@@ -323,8 +330,8 @@ export const CompleteProfileWizard: React.FC = () => {
           </View>
         </View>
       </LinearGradient>
-      </KeyboardAvoidingView>
-    </Screen>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 };
 

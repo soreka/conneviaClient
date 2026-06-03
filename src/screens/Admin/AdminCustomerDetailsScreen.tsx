@@ -11,6 +11,8 @@ import {
   Pressable,
   Modal,
   AppState,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -389,10 +391,20 @@ export const AdminCustomerDetailsScreen = () => {
       </LinearGradient>
 
       {/* Content */}
+      {/* C-UX-07: 9 editable TextInputs (incl. multi-line health notes) live
+          inside this ScrollView. Wrap it in a KeyboardAvoidingView so the
+          keyboard pushes the form up instead of hiding the focused input and
+          the per-card save button on smaller phones. `keyboardShouldPersistTaps`
+          keeps the save tap from being swallowed by a dismiss while typing. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         className="flex-1 px-2"
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
@@ -889,6 +901,7 @@ export const AdminCustomerDetailsScreen = () => {
           </Card>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Subscription Status Modal */}
       <Modal

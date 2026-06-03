@@ -11,6 +11,10 @@ interface ScreenProps {
   safe?: boolean;
   className?: string;
   contentContainerClassName?: string;
+  // Forwarded to the inner ScrollView when `scroll` is true. Lets callers opt
+  // in to `"handled"` so taps on submit buttons aren't swallowed by the
+  // keyboard-dismiss handler while the keyboard is open (C-UX-06).
+  keyboardShouldPersistTaps?: ScrollViewProps['keyboardShouldPersistTaps'];
 }
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -20,6 +24,7 @@ export const Screen: React.FC<ScreenProps> = ({
   safe = true,
   className,
   contentContainerClassName,
+  keyboardShouldPersistTaps,
 }) => {
   const containerClass = cn(
     'flex-1 bg-background',
@@ -33,6 +38,7 @@ export const Screen: React.FC<ScreenProps> = ({
       contentContainerStyle={{ flexGrow: 1 }}
       contentContainerClassName={contentContainerClassName}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
     >
       {children}
     </ScrollView>
