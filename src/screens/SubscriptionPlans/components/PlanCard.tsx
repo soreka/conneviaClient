@@ -70,7 +70,11 @@ export const PlanCard: React.FC<PlanCardProps> = ({
     ? 'border-purple-200'
     : 'border-gray-100';
 
-  const buttonLabel = actionLabel || (isSelected ? 'تم الاختيار ✓' : 'اختيار هذه الباقة');
+  // C-STORE-01 payment-rework (2026-06-03): the default plan CTA reads as a
+  // neutral request label, not a payment / checkout. Price still renders
+  // above (informational), but the call-to-action no longer says "buy" /
+  // "choose to pay".
+  const buttonLabel = actionLabel || (isSelected ? 'تم الطلب ✓' : 'اطلبي الباقة');
 
   return (
     <View

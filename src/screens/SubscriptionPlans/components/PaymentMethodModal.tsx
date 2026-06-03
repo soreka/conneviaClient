@@ -1,16 +1,27 @@
 // src/screens/SubscriptionPlans/components/PaymentMethodModal.tsx
-import React, { useState } from 'react';
+//
+// C-STORE-01 / C-UX-01 / C-STORE-04 (2026-06-03 payment-rework):
+// The customer subscription flow is a NEUTRAL OUT-OF-BAND REQUEST, not an
+// in-app checkout. Per Apple Guideline 3.1.1 we must not display payment
+// method choices, bank-transfer instructions, proof-of-transfer copy, an
+// "amount to pay" line, or "confirm payment" wording. The studio arranges
+// payment with the customer separately (WhatsApp / in person).
+//
+// The file name is retained to avoid import churn across the screen and
+// components/index.ts. Renaming is optional and out of scope.
+import React from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
-import { X, Banknote, Building2, CheckCircle } from 'lucide-react-native';
-import { agorotToNis } from '../../../utils/formatPrice';
+import { X } from 'lucide-react-native';
 
-type PaymentMethod = 'cash' | 'bank_transfer';
 type RequestedAction = 'renew' | 'upgrade_current_month' | 'upgrade_next_month' | 'downgrade_next_month';
 
 interface PaymentMethodModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (method: PaymentMethod, proofUrl?: string) => void;
+  // The reworked flow does NOT collect a method or a proof. The handler
+  // signature accepts no args so the screen's createPayment(...) call site
+  // can drop method/proofUrl from the mutation body.
+  onConfirm: () => void;
   isLoading?: boolean;
   planName?: string;
   planPrice?: number;
@@ -19,16 +30,9 @@ interface PaymentMethodModalProps {
 
 const ACTION_TITLES: Record<RequestedAction, string> = {
   renew: 'تمديد الاشتراك',
-  upgrade_current_month: 'ترقية الشهر الحالي',
+  upgrade_current_month: 'ترقية الباقة',
   upgrade_next_month: 'ترقية للشهر القادم',
   downgrade_next_month: 'تخفيض للشهر القادم',
-};
-
-const ACTION_BUTTON_LABELS: Record<RequestedAction, string> = {
-  renew: 'تأكيد التمديد',
-  upgrade_current_month: 'تأكيد الترقية',
-  upgrade_next_month: 'تأكيد الترقية',
-  downgrade_next_month: 'تأكيد التخفيض',
 };
 
 export const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
@@ -37,20 +41,14 @@ export const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
   onConfirm,
   isLoading = false,
   planName,
-  planPrice,
   requestedAction = 'upgrade_next_month',
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-
   const handleConfirm = () => {
-    if (selectedMethod) {
-      onConfirm(selectedMethod);
-    }
+    onConfirm();
   };
 
   const handleClose = () => {
     if (!isLoading) {
-      setSelectedMethod(null);
       onClose();
     }
   };
@@ -70,9 +68,9 @@ export const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
           className="bg-white rounded-2xl w-full max-w-sm p-6"
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Header */}
+          {/* Header — neutral request title, not a checkout title */}
           <View className="flex-row-reverse items-center justify-between mb-4">
-            <Text className="text-xl font-bold text-gray-900">{ACTION_TITLES[requestedAction]}</Text>
+            <Text className="text-xl font-bold text-gray-900">اطلبي هذه الباقة</Text>
             <TouchableOpacity onPress={handleClose} className="p-1" disabled={isLoading}>
               <X size={24} color="#6b7280" />
             </TouchableOpacity>
@@ -84,114 +82,35 @@ export const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({
             </Text>
           )}
 
-          {planPrice !== undefined && (
-            <Text className="text-lg font-bold text-purple-700 text-right mb-4">
-              المبلغ: {agorotToNis(planPrice)} ₪
-            </Text>
-          )}
-
+          {/* Subtitle: clarify the action without payment wording */}
           <Text className="text-sm text-gray-500 text-right mb-6">
-            اختر طريقة الدفع المفضلة لديك
+            {ACTION_TITLES[requestedAction]}
           </Text>
 
-          {/* Payment options */}
-          <View className="gap-3 mb-6">
-            <TouchableOpacity
-              onPress={() => setSelectedMethod('cash')}
-              className={`rounded-xl py-4 px-4 flex-row-reverse items-center border-2 ${
-                selectedMethod === 'cash' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white'
-              }`}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View
-                className={`w-12 h-12 rounded-full items-center justify-center ${
-                  selectedMethod === 'cash' ? 'bg-purple-100' : 'bg-gray-100'
-                }`}
-              >
-                <Banknote size={24} color={selectedMethod === 'cash' ? '#8b5cf6' : '#6b7280'} />
-              </View>
-              <View className="flex-1 mr-3">
-                <Text
-                  className={`text-base font-medium text-right ${
-                    selectedMethod === 'cash' ? 'text-purple-900' : 'text-gray-900'
-                  }`}
-                >
-                  كاش
-                </Text>
-                <Text className="text-sm text-gray-500 text-right">الدفع نقداً في الاستوديو</Text>
-              </View>
-              {selectedMethod === 'cash' && <CheckCircle size={24} color="#8b5cf6" />}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedMethod('bank_transfer')}
-              className={`rounded-xl py-4 px-4 flex-row-reverse items-center border-2 ${
-                selectedMethod === 'bank_transfer' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white'
-              }`}
-              activeOpacity={0.7}
-              disabled={isLoading}
-            >
-              <View
-                className={`w-12 h-12 rounded-full items-center justify-center ${
-                  selectedMethod === 'bank_transfer' ? 'bg-purple-100' : 'bg-gray-100'
-                }`}
-              >
-                <Building2 size={24} color={selectedMethod === 'bank_transfer' ? '#8b5cf6' : '#6b7280'} />
-              </View>
-              <View className="flex-1 mr-3">
-                <Text
-                  className={`text-base font-medium text-right ${
-                    selectedMethod === 'bank_transfer' ? 'text-purple-900' : 'text-gray-900'
-                  }`}
-                >
-                  تحويل بنكي
-                </Text>
-                <Text className="text-sm text-gray-500 text-right">التحويل إلى حسابنا البنكي</Text>
-              </View>
-              {selectedMethod === 'bank_transfer' && <CheckCircle size={24} color="#8b5cf6" />}
-            </TouchableOpacity>
+          {/* Neutral body — the studio handles the rest out of band. No
+              method picker, no "amount", no transfer instructions, no
+              proof-attach notice. */}
+          <View className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100">
+            <Text className="text-sm text-gray-700 text-right leading-6">
+              ستتواصل معك الإدارة لإتمام الاشتراك.
+            </Text>
           </View>
 
-          {/* Upgrade current month disclaimer */}
-          {requestedAction === 'upgrade_current_month' && (
-            <View className="bg-yellow-50 rounded-lg p-3 mb-4 border border-yellow-200">
-              <Text className="text-xs text-yellow-800 text-right">
-                هذا مبلغ تقديري وقد يتم تعديله بعد مراجعة الإدارة
-              </Text>
-            </View>
-          )}
-
-          {/* Bank transfer proof notice */}
-          {selectedMethod === 'bank_transfer' && (
-            <View className="bg-blue-50 rounded-lg p-3 mb-4 border border-blue-200">
-              <Text className="text-xs text-blue-800 text-right">
-                يرجى إرفاق إثبات التحويل البنكي بعد إتمام التحويل
-              </Text>
-            </View>
-          )}
-
-          {/* Confirm button */}
+          {/* Single neutral confirm button */}
           <TouchableOpacity
             onPress={handleConfirm}
-            disabled={!selectedMethod || isLoading}
-            className={`rounded-xl py-4 ${
-              selectedMethod && !isLoading ? 'bg-purple-600' : 'bg-gray-300'
-            }`}
+            disabled={isLoading}
+            className={`rounded-xl py-4 ${isLoading ? 'bg-gray-300' : 'bg-purple-600'}`}
             activeOpacity={0.8}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <Text className="text-white font-bold text-center text-base">
-                {ACTION_BUTTON_LABELS[requestedAction]}
+                تأكيد الطلب
               </Text>
             )}
           </TouchableOpacity>
-
-          <Text className="text-xs text-gray-400 text-center mt-3">
-            سيتم تفعيل اشتراكك بعد تأكيد الدفع من قبل الإدارة
-          </Text>
         </Pressable>
       </Pressable>
     </Modal>

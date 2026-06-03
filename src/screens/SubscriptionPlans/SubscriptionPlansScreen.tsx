@@ -1,6 +1,13 @@
 // src/screens/SubscriptionPlans/SubscriptionPlansScreen.tsx
+//
+// C-STORE-01 / C-UX-01 / C-STORE-04 (2026-06-03 payment-rework):
+// This screen now sends a NEUTRAL OUT-OF-BAND REQUEST to the studio. The
+// customer flow no longer collects a payment method or a proof-of-transfer
+// URL, and no longer surfaces "amount to pay" / cash vs bank-transfer
+// pickers / "confirm payment" wording. The plan name + price still render
+// as informational context (NOT as a checkout).
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, {
@@ -17,7 +24,6 @@ import {
 } from '../../features/api/apiSlice';
 import { SkeletonPlans, PlanCard, PaymentMethodModal } from './components';
 
-type PaymentMethod = 'cash' | 'bank_transfer';
 type RequestedAction = 'renew' | 'upgrade_current_month' | 'upgrade_next_month' | 'downgrade_next_month';
 
 interface Plan {
@@ -151,15 +157,15 @@ export const SubscriptionPlansScreen = () => {
   }, []);
 
   const handleConfirmPayment = useCallback(
-    async (method: PaymentMethod, proofUrl?: string) => {
+    async () => {
       if (!selectedPlanId) return;
 
       try {
+        // C-STORE-04: send ONLY { planId, requestedAction }. No `method`,
+        // no `proofUrl` — the studio arranges payment out of band.
         await createPayment({
           planId: selectedPlanId,
-          method,
           requestedAction: selectedAction,
-          proofUrl,
         }).unwrap();
 
         setShowPaymentModal(false);
@@ -167,14 +173,14 @@ export const SubscriptionPlansScreen = () => {
 
         const actionMessages: Record<RequestedAction, string> = {
           renew: 'تم تقديم طلب تمديد الاشتراك بنجاح.',
-          upgrade_current_month: 'تم تقديم طلب الترقية الفورية بنجاح.',
+          upgrade_current_month: 'تم تقديم طلب الترقية بنجاح.',
           upgrade_next_month: 'تم تقديم طلب الترقية للشهر القادم بنجاح.',
           downgrade_next_month: 'تم تقديم طلب تخفيض الباقة للشهر القادم بنجاح.',
         };
 
         Alert.alert(
           'تم بنجاح! ✓',
-          `${actionMessages[selectedAction]} سيتم مراجعته من قبل الإدارة وإشعارك عند الموافقة.`,
+          `${actionMessages[selectedAction]} ستتواصل معك الإدارة لإتمام الاشتراك.`,
           [
             {
               text: 'حسناً',
@@ -266,22 +272,23 @@ export const SubscriptionPlansScreen = () => {
                 }
               }}
               actionLabel={
+                // C-STORE-01 payment-rework: neutral request labels. No
+                // payment-method wording on the plan CTAs.
                 relation === 'same' ? 'تمديد للشهر القادم' :
                 relation === 'lower' ? 'تخفيض للشهر القادم' :
                 relation === 'higher' ? 'ترقية' :
-                'اختيار'
+                'اطلبي الباقة'
               }
             />
           );
         })}
 
-        {/* Info text */}
+        {/* Info text — C-STORE-01 payment-rework: the price-and-renewal
+            selling tagline was removed (Apple 3.1.1 steering risk). A neutral
+            note about contacting the studio remains. */}
         <View className="mt-4 mb-8">
           <Text className="text-xs text-gray-400 text-center">
-            جميع الأسعار بالشيكل الإسرائيلي. يتم تجديد الاشتراك شهرياً.
-          </Text>
-          <Text className="text-xs text-gray-400 text-center mt-1">
-            يمكنك إلغاء أو تغيير اشتراكك في أي وقت.
+            ستتواصل معك الإدارة لإتمام الاشتراك بعد إرسال الطلب.
           </Text>
         </View>
       </ScrollView>
