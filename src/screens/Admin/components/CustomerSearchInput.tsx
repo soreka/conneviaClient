@@ -40,17 +40,18 @@ export const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   const customers = data?.customers || [];
   const isSearching = isLoading || isFetching;
 
-  // Log response data
+  // Log response data (dev only — never log PII in release builds)
   useEffect(() => {
-    if (data) {
-      console.log('[CustomerSearchInput] received response', { 
-        ok: data.ok, 
-        customersCount: data.customers?.length,
-        customers: data.customers 
-      });
-    }
-    if (error) {
-      console.log('[CustomerSearchInput] received error', error);
+    if (__DEV__) {
+      if (data) {
+        console.log('[CustomerSearchInput] received response', {
+          ok: data.ok,
+          customersCount: data.customers?.length,
+        });
+      }
+      if (error) {
+        console.log('[CustomerSearchInput] received error');
+      }
     }
   }, [data, error]);
 
@@ -65,7 +66,9 @@ export const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
 
     if (text.length >= 1) {
       debounceRef.current = setTimeout(() => {
-        console.log('[CustomerSearchInput] triggering search', { q: text, limit: 15 });
+        if (__DEV__) {
+          console.log('[CustomerSearchInput] triggering search', { len: text.length, limit: 15 });
+        }
         triggerSearch({ q: text, limit: 15 });
       }, 300);
     }

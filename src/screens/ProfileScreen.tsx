@@ -271,12 +271,20 @@ export const ProfileScreen = () => {
     });
   };
 
-  const handleCallStudio = () => {
-    Linking.openURL(`tel:${STUDIO_PHONE}`);
+  const handleCallStudio = async () => {
+    try {
+      await Linking.openURL(`tel:${STUDIO_PHONE}`);
+    } catch (err) {
+      if (__DEV__) console.log('[ProfileScreen] handleCallStudio failed', err);
+    }
   };
 
-  const handleWhatsAppStudio = () => {
-    Linking.openURL(`https://wa.me/${STUDIO_WHATSAPP}`);
+  const handleWhatsAppStudio = async () => {
+    try {
+      await Linking.openURL(`https://wa.me/${STUDIO_WHATSAPP}`);
+    } catch (err) {
+      if (__DEV__) console.log('[ProfileScreen] handleWhatsAppStudio failed', err);
+    }
   };
 
   return (

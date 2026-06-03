@@ -127,7 +127,8 @@ export const AdminScheduleSettingsScreen = () => {
       await updateSettings({ days: newDays }).unwrap();
       setSelectedDay(null);
       
-      if (updatedDay.workPeriods.length > localDays.find(d => d.dayOfWeek === updatedDay.dayOfWeek)?.workPeriods.length!) {
+      const prevLen = localDays.find(d => d.dayOfWeek === updatedDay.dayOfWeek)?.workPeriods.length ?? 0;
+      if (updatedDay.workPeriods.length > prevLen) {
         Toast.show({
           type: 'success',
           text1: 'تمت إضافة فترة العمل',

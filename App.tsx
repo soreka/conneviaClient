@@ -66,8 +66,11 @@ function AuthResetGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  verifyInstallation();
-  
+  // NativeWind setup-only diagnostic — never run in release builds (C-UX-03).
+  if (__DEV__) {
+    verifyInstallation();
+  }
+
   return (
     <Provider store={store}>
       <SafeAreaProvider>
