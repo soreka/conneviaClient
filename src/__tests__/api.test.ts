@@ -218,8 +218,24 @@ describe('response interceptor - ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED', () => {
         .reply(401, { error: 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED' });
 
       await expect(api.get('/v1/me')).rejects.toBeDefined();
-      // Two attempts to delete the token = flag was reset.
-      expect(mockDeleteItem).toHaveBeenCalledTimes(2);
+      // Flag was reset = handler re-entered on the second 401.
+      //
+      // Count = 3 because the C-AUTH-01 fix made the handler clear BOTH
+      // SecureStore slots on each entry (access AND refresh):
+      //   1. First handler entry: setAccessToken(null) → deleteItemAsync(TOKEN_KEY) → REJECTS.
+      //      The throw propagates before setRefreshToken(null) runs. The try/finally
+      //      still resets isHandlingDeletedAccount (CLIENT-2.15 invariant).
+      //   2. Second handler entry: setAccessToken(null) → deleteItemAsync(TOKEN_KEY) → resolves.
+      //   3. Second handler entry: setRefreshToken(null) → deleteItemAsync(REFRESH_TOKEN_KEY) → resolves.
+      // If the flag had NOT reset (the bug this test exists to guard), entries
+      // 2 and 3 would not happen and the count would be 1.
+      expect(mockDeleteItem).toHaveBeenCalledTimes(3);
+
+      // Sharpen the contract: the second entry must clear BOTH slots so the
+      // refresh-token leak (C-AUTH-01) cannot resurface alongside this flag-
+      // reset invariant.
+      expect(mockDeleteItem).toHaveBeenCalledWith(TOKEN_KEY);
+      expect(mockDeleteItem).toHaveBeenCalledWith('connevia.refresh_token');
     }
   );
 });

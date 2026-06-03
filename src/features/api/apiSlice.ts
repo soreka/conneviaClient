@@ -7,6 +7,7 @@ import { AdminSessionDetails, BookingDetails } from '../../types/adminSchedule';
 import { mapApiToSessionCore, mapApiSessionsToCore, mapApiToAdminSessionDetails } from '../../mappers/scheduleMappers';
 import { logout } from '../auth/authSlice';
 import { resetToLogin } from '../../navigation/navigationRef';
+import { getRefreshToken, refreshAccessToken } from '../../api';
 
 const TOKEN_KEY = 'connevia.access_token';
 
@@ -39,7 +40,36 @@ const baseQueryWith401Handler: BaseQueryFn<string | FetchArgs, unknown, FetchBas
     // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED specific error
     const errorData = result.error.data as { error?: string } | undefined;
     const errorCode = errorData?.error;
-    
+
+    // C-AUTH-02: a generic 401 (expired access token, NOT a deleted account)
+    // must attempt a single-flight refresh via the SHARED `refreshAccessToken`
+    // lock exported from `../../api`, and re-run the original `rawBaseQuery`
+    // exactly once with the freshly-stored access token. Only fall through to
+    // the existing logout path when:
+    //   (a) no refresh token is stored, OR
+    //   (b) the refresh itself rejects, OR
+    //   (c) the single retry still returns 401.
+    //
+    // The retry calls `rawBaseQuery` directly (NOT this wrapper) so a second
+    // 401 after refresh cannot recurse into another refresh attempt.
+    if (errorCode !== 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
+      const refreshToken = await getRefreshToken();
+      if (refreshToken) {
+        try {
+          await refreshAccessToken();
+          // Retry exactly once via the raw query so we cannot re-enter this
+          // wrapper if the retry itself gets a 401.
+          const retryResult = await rawBaseQuery(args, api, extraOptions);
+          if (!(retryResult.error && retryResult.error.status === 401)) {
+            return retryResult;
+          }
+          // Retry still 401: fall through to logout below.
+        } catch {
+          // Refresh failed: fall through to logout below.
+        }
+      }
+    }
+
     if (!isLoggingOut) {
       isLoggingOut = true;
 
@@ -574,9 +604,16 @@ export const apiSlice = createApi({
         targetEndDate: string;
         submittedAt: string;
       } },
-      { 
-        planId: string; 
-        method: 'cash' | 'bank_transfer'; 
+      {
+        planId: string;
+        // C-STORE-01 / C-STORE-04 (2026-06-03 payment-rework):
+        // The customer flow no longer collects a payment method or proof.
+        // The studio arranges payment out of band; the client only sends a
+        // neutral request intent. `method` and `proofUrl` are kept optional
+        // (rather than removed) so historical display code in admin /
+        // submissions screens still compiles, and the field stays available
+        // for any non-customer caller that still needs to send it.
+        method?: 'cash' | 'bank_transfer';
         requestedAction: 'renew' | 'upgrade_current_month' | 'upgrade_next_month' | 'downgrade_next_month';
         proofUrl?: string;
       }
@@ -1153,6 +1190,26 @@ export const apiSlice = createApi({
     }),
   }),
 });
+
+// C-AUTH-03 / C-STATE-01: make `apiSlice.reducer` itself respond to
+// `auth/logout` by resetting to its initial state. This way any consumer
+// that wires `apiSlice.reducer` directly (the production store, the
+// isolated test store in `src/__tests__/logoutResetsApiCache.test.ts`,
+// and any future Redux setup) automatically drops the RTK Query cache
+// on logout — no caller has to remember to co-dispatch
+// `apiSlice.util.resetApiState()`. We preserve the original reducer
+// reference so we can delegate to it with `state = undefined` (which
+// returns the slice's initial state, matching `resetApiState` semantics).
+{
+  const originalReducer = apiSlice.reducer;
+  const wrappedReducer: typeof originalReducer = (state, action) => {
+    if (action.type === 'auth/logout') {
+      return originalReducer(undefined, action);
+    }
+    return originalReducer(state, action);
+  };
+  apiSlice.reducer = wrappedReducer;
+}
 
 export const {
   // Consumer hooks

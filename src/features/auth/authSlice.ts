@@ -6,6 +6,11 @@ import type { RootState } from '../../app/store';
 import { type UserRole, DEFAULT_ROLE } from '../../utils/tokenUtils';
 
 const TOKEN_KEY = 'connevia.access_token';
+// C-AUTH-01: the Auth0 refresh token lives in a separate SecureStore slot
+// (mirrors src/api.ts) and must be cleared on every teardown so a
+// signed-out / deleted account cannot mint fresh access tokens off a
+// long-lived refresh token at Auth0's /oauth/token endpoint.
+const REFRESH_TOKEN_KEY = 'connevia.refresh_token';
 
 export interface User {
   id: string;
@@ -53,9 +58,13 @@ const authSlice = createSlice({
       state.role = DEFAULT_ROLE;
       state.isAuthenticated = false;
       state.isRestoring = false;
-      
-      // Remove token from SecureStore (async, fire and forget)
+
+      // Remove BOTH tokens from SecureStore (async, fire and forget).
+      // C-AUTH-01: clearing only the access token left a long-lived refresh
+      // token on the device that could still mint access tokens against
+      // Auth0 after the user signed out.
       void SecureStore.deleteItemAsync(TOKEN_KEY);
+      void SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     },
     // Action to restore session from SecureStore on app startup
     restoreSession: (

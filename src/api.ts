@@ -78,11 +78,17 @@ type RetryableConfig = AxiosRequestConfig & { _retry?: boolean };
 // refresh token multiple times). Cleared in a `finally` once it settles.
 let refreshPromise: Promise<string> | null = null;
 
-// CLIENT-1.2: perform the Auth0 token refresh exactly once across concurrent
-// callers. Resolves with the new access token; rejects if no refresh token is
-// stored or the refresh fails. On success it persists the new access token and
-// any rotated refresh token to SecureStore.
-async function refreshAccessToken(): Promise<string> {
+// CLIENT-1.2 / C-AUTH-02: perform the Auth0 token refresh exactly once across
+// concurrent callers. Resolves with the new access token; rejects if no
+// refresh token is stored or the refresh fails. On success it persists the
+// new access token and any rotated refresh token to SecureStore.
+//
+// Exported so the RTK Query 401 handler (src/features/api/apiSlice.ts) can
+// share the SAME module-level `refreshPromise` lock as the axios interceptor.
+// A single-flight refresh across both data paths prevents two concurrent
+// 401s from rotating the Auth0 refresh token twice (which would invalidate
+// one of them and surface as a phantom logout on the next request).
+export async function refreshAccessToken(): Promise<string> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
@@ -136,8 +142,12 @@ api.interceptors.response.use(
         try {
           console.error('[API] ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED - forcing logout');
 
-          // Clear token from SecureStore
+          // Clear both tokens from SecureStore.
+          // C-AUTH-01: also clear the REFRESH token — otherwise a deleted /
+          // GDPR-erased account could still mint fresh access tokens against
+          // Auth0's /oauth/token endpoint from a long-lived refresh token.
           await setAccessToken(null);
+          await setRefreshToken(null);
 
           // Note: Navigation to Login is handled by RootNavigator watching auth state
           // The redux logout will be dispatched by the component that catches this error
