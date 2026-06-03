@@ -37,7 +37,12 @@ export const RootNavigator = () => {
   const role = useAppSelector(selectRole);
 
   // Fetch DB profile (only when authenticated)
-  const { data: meData, isLoading: isMeLoading } = useGetMeQuery(undefined, {
+  const {
+    data: meData,
+    isLoading: isMeLoading,
+    isError: isMeError,
+    error: meError,
+  } = useGetMeQuery(undefined, {
     skip: !isAuthenticated,
   });
 
@@ -98,7 +103,19 @@ export const RootNavigator = () => {
     );
   }
 
-  // Route based on auth state and role
+  // Route based on auth state and role.
+  // C-STATE-02: a getMe error (network timeout / 5xx / offline) leaves
+  // `meData === undefined` and `isMeLoading === false`. Without an
+  // error-aware branch, the navigator would fall through to CustomerTabs
+  // and an incomplete-profile customer would bypass the
+  // CompleteProfileWizard. We treat the "errored / could-not-determine"
+  // case as a loading state — RTK Query auto-refetches on remount/focus/
+  // reconnect, so the placeholder self-heals.
+  const meCannotBeDetermined =
+    isAuthenticated &&
+    role !== 'admin' &&
+    (isMeError || meError || (!meData && !isMeLoading));
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
@@ -106,6 +123,8 @@ export const RootNavigator = () => {
       ) : role === 'admin' ? (
         <Stack.Screen name="AdminTabs" component={AdminTabNavigator} />
       ) : isMeLoading ? (
+        <Stack.Screen name="CustomerTabs" component={LoadingScreen} />
+      ) : meCannotBeDetermined ? (
         <Stack.Screen name="CustomerTabs" component={LoadingScreen} />
       ) : needsProfileCompletion ? (
         <Stack.Screen name="CompleteProfileWizard" component={CompleteProfileWizard} />

@@ -65,7 +65,15 @@ interface SessionItem {
 // ============================================
 
 const formatDateKey = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  // C-UX-09: derive the grouping key from the LOCAL date (same basis as
+  // the day-name/label getters: getDay / getDate / getMonth). The old
+  // UTC-ISO truncation pattern shifted the key by ±1 day near local
+  // midnight (a 23:30 Asia/Jerusalem session grouped under tomorrow's
+  // card). Now key and label share a timezone basis.
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
 };
 
 const getArabicDayName = (date: Date): string => {
@@ -319,8 +327,20 @@ export const BookingWizardScreen: React.FC = () => {
   
   // Submit reservation
   const handleConfirmBooking = async () => {
-    if (!selectedSessionId || !selectedBedNumber) return;
-    
+    // C-NET-08: also guard on the RESOLVED session. `selectedSessionId` is
+    // just a string the caller may have deep-linked in; the actual session
+    // object comes from either the now→+14d list (selectedSession) or the
+    // by-id details query (sessionDetailsData). If neither has resolved
+    // (loading / errored / outside the wizard window), the Step-4 summary
+    // is blank — we must NOT submit a booking the user can't see.
+    if (
+      !selectedSessionId ||
+      !selectedBedNumber ||
+      (!selectedSession && !sessionDetailsData?.session)
+    ) {
+      return;
+    }
+
     try {
       await createReservation({
         sessionId: selectedSessionId,
@@ -553,8 +573,8 @@ export const BookingWizardScreen: React.FC = () => {
           <>
             <Pressable
               onPress={handleConfirmBooking}
-              disabled={isCreating}
-              className={`rounded-2xl py-4 items-center mb-3 ${isCreating ? 'bg-muted' : 'bg-primary'}`}
+              disabled={isCreating || (!selectedSession && !sessionDetailsData?.session)}
+              className={`rounded-2xl py-4 items-center mb-3 ${isCreating || (!selectedSession && !sessionDetailsData?.session) ? 'bg-muted' : 'bg-primary'}`}
               style={{
                 shadowColor: '#A68CD4',
                 shadowOffset: { width: 0, height: 4 },
