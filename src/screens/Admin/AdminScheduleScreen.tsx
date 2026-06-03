@@ -57,6 +57,7 @@ const FALLBACK_MOCK_SLOTS: AdminSlot[] = [
     id: '1',
     title: 'يوغا صباحية',
     startsAt: '2024-12-22T08:00:00Z',
+    endTime: '09:00',
     durationMin: 60,
     capacity: 10,
     bookedCount: 7,
@@ -67,6 +68,7 @@ const FALLBACK_MOCK_SLOTS: AdminSlot[] = [
     id: '2',
     title: 'بيلاتس',
     startsAt: '2024-12-22T10:00:00Z',
+    endTime: '10:45',
     durationMin: 45,
     capacity: 8,
     bookedCount: 8,
@@ -77,6 +79,7 @@ const FALLBACK_MOCK_SLOTS: AdminSlot[] = [
     id: '3',
     title: 'تمارين القوة',
     startsAt: '2024-12-22T14:00:00Z',
+    endTime: '15:00',
     durationMin: 60,
     capacity: 12,
     bookedCount: 5,
@@ -101,6 +104,13 @@ interface AdminSlot {
   id: string;
   title: string;
   startsAt: string;
+  /**
+   * End time in "HH:mm" format. Carried through from SessionCore.endTime so
+   * the screen displays the session's REAL duration (C-NET-03). Falls back to
+   * an empty string only for legacy/mock paths; renderers should fall back to
+   * `getEndTime(startsAt, durationMin)` when this is empty.
+   */
+  endTime: string;
   durationMin: number;
   capacity: number;
   bookedCount: number;
@@ -132,19 +142,30 @@ export const AdminScheduleScreen = () => {
     { skip: !USE_REAL_API }
   );
 
-  // Convert API sessions to AdminSlot format (bookings loaded separately)
+  // Convert API sessions to AdminSlot format (bookings loaded separately).
+  // C-NET-03: carry the session's REAL end time (and derived real duration)
+  // through onto AdminSlot instead of hardcoding `durationMin: 60`. The
+  // renderers display item.endTime directly; durationMin stays on the slot
+  // for the EditSessionModal pre-fill and is derived from startTime/endTime.
   const apiSlots: AdminSlot[] = useMemo(() => {
     if (!apiData?.sessions) return [];
-    return apiData.sessions.map((s) => ({
-      id: s.id,
-      title: s.titleAr,
-      startsAt: s.dateISO || '',
-      durationMin: 60, // Default, could be derived from startTime/endTime
-      capacity: s.capacityTotal,
-      bookedCount: s.occupiedCount,
-      type: s.titleAr,
-      bookings: [], // Loaded on demand via details endpoint
-    }));
+    return apiData.sessions.map((s) => {
+      const [startH, startM] = (s.startTime || '00:00').split(':').map(Number);
+      const [endH, endM] = (s.endTime || '00:00').split(':').map(Number);
+      const derivedDuration =
+        (endH * 60 + endM) - (startH * 60 + startM);
+      return {
+        id: s.id,
+        title: s.titleAr,
+        startsAt: s.dateISO || '',
+        endTime: s.endTime,
+        durationMin: derivedDuration > 0 ? derivedDuration : 0,
+        capacity: s.capacityTotal,
+        bookedCount: s.occupiedCount,
+        type: s.titleAr,
+        bookings: [], // Loaded on demand via details endpoint
+      };
+    });
   }, [apiData]);
 
   // Use API data if available, otherwise fallback to mock
@@ -445,6 +466,7 @@ export const AdminScheduleScreen = () => {
         id: `slot-${Date.now()}`,
         title: newSession.type,
         startsAt: startsAt.toISOString(),
+        endTime: newSession.endTime,
         durationMin,
         capacity: newSession.capacity,
         bookedCount: 0,
@@ -460,9 +482,16 @@ export const AdminScheduleScreen = () => {
     const isFull = item.bookedCount >= item.capacity;
     const isPast = isSessionInPast(item.startsAt);
     const startTime = formatTime(item.startsAt);
-    const endTime = getEndTime(item.startsAt, item.durationMin);
+    // C-NET-03: use the session's REAL endTime carried on the slot. Fall back
+    // to the derived value only for legacy mock-data paths where endTime is empty.
+    const endTime = item.endTime || getEndTime(item.startsAt, item.durationMin);
     const timeRange = `${startTime} - ${endTime}`;
-    const occupancyPercent = (item.bookedCount / item.capacity) * 100;
+    // C-NET-07: use the shared zero-guarded helper instead of dividing inline
+    // (which yields NaN% when capacity is 0).
+    const occupancyPercent = getOccupancyPercent({
+      capacityTotal: item.capacity,
+      occupiedCount: item.bookedCount,
+    } as SessionCore);
 
     return (
       <View
@@ -581,7 +610,10 @@ export const AdminScheduleScreen = () => {
     if (!detailsModalVisible || !selectedSlot) return null;
 
     const startTime = formatTime(selectedSlot.startsAt);
-    const endTime = getEndTime(selectedSlot.startsAt, selectedSlot.durationMin);
+    // C-NET-03: use the session's REAL endTime carried on the slot. Fall back
+    // to the derived value only for legacy mock-data paths where endTime is empty.
+    const endTime =
+      selectedSlot.endTime || getEndTime(selectedSlot.startsAt, selectedSlot.durationMin);
     const timeRange = `${startTime} - ${endTime}`;
     const isPastSession = isSessionInPast(selectedSlot.startsAt);
 

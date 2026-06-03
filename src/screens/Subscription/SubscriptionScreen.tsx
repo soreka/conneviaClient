@@ -266,53 +266,67 @@ export const SubscriptionScreen = () => {
         )}
 
         {/* Monthly usage card */}
-        {usage && current?.status === 'active' && (
-          <AnimatedCard index={4}>
-            <View className="bg-purple-50 rounded-2xl p-4 mb-4 border border-purple-200">
-              <Text className="text-base font-bold text-purple-800 text-right mb-3">
-                استخدام الجلسات
-              </Text>
-              
-              {/* Monthly usage */}
-              <View className="mb-4">
-                <View className="flex-row-reverse justify-between mb-1">
-                  <Text className="text-sm text-purple-700 text-right">الجلسات الشهرية</Text>
-                  <Text className="text-sm text-purple-900 font-bold">
-                    {usage.monthlyUsed} / {usage.monthlyLimit}
-                  </Text>
-                </View>
-                <View className="h-3 bg-purple-200 rounded-full overflow-hidden">
-                  <View 
-                    className="h-full bg-purple-600 rounded-full" 
-                    style={{ width: `${Math.min(100, (usage.monthlyUsed / usage.monthlyLimit) * 100)}%` }}
-                  />
-                </View>
-                <Text className="text-xs text-purple-500 text-right mt-1">
-                  متبقي: {usage.monthlyLeft} جلسات
+        {usage && current?.status === 'active' && (() => {
+          // C-NET-05 / C-UX-10: guard the progress-bar width math against a 0
+          // (or undefined) denominator so a missing/zero limit renders as 0%
+          // (not 'NaN%'). Mirrors the safe pattern in WeeklyUsageCard /
+          // Dashboard UsageCard: compute the raw percent with a `limit > 0`
+          // ternary FIRST, then clamp with Math.min(percent, 100) so the
+          // division never reaches a 0 (or undefined) denominator.
+          const monthlyRaw =
+            usage.monthlyLimit > 0 ? (usage.monthlyUsed / usage.monthlyLimit) * 100 : 0;
+          const monthlyPercent = Math.min(monthlyRaw, 100);
+          const weeklyRaw =
+            usage.weeklyLimit > 0 ? (usage.weeklyUsed / usage.weeklyLimit) * 100 : 0;
+          const weeklyPercent = Math.min(weeklyRaw, 100);
+          return (
+            <AnimatedCard index={4}>
+              <View className="bg-purple-50 rounded-2xl p-4 mb-4 border border-purple-200">
+                <Text className="text-base font-bold text-purple-800 text-right mb-3">
+                  استخدام الجلسات
                 </Text>
-              </View>
 
-              {/* Weekly usage (global cap) */}
-              <View>
-                <View className="flex-row-reverse justify-between mb-1">
-                  <Text className="text-sm text-purple-700 text-right">الحد الأسبوعي</Text>
-                  <Text className="text-sm text-purple-900 font-bold">
-                    {usage.weeklyUsed} / {usage.weeklyLimit}
+                {/* Monthly usage */}
+                <View className="mb-4">
+                  <View className="flex-row-reverse justify-between mb-1">
+                    <Text className="text-sm text-purple-700 text-right">الجلسات الشهرية</Text>
+                    <Text className="text-sm text-purple-900 font-bold">
+                      {usage.monthlyUsed} / {usage.monthlyLimit}
+                    </Text>
+                  </View>
+                  <View className="h-3 bg-purple-200 rounded-full overflow-hidden">
+                    <View
+                      className="h-full bg-purple-600 rounded-full"
+                      style={{ width: `${monthlyPercent}%` }}
+                    />
+                  </View>
+                  <Text className="text-xs text-purple-500 text-right mt-1">
+                    متبقي: {usage.monthlyLeft} جلسات
                   </Text>
                 </View>
-                <View className="h-3 bg-purple-200 rounded-full overflow-hidden">
-                  <View 
-                    className="h-full bg-purple-500 rounded-full" 
-                    style={{ width: `${Math.min(100, (usage.weeklyUsed / usage.weeklyLimit) * 100)}%` }}
-                  />
+
+                {/* Weekly usage (global cap) */}
+                <View>
+                  <View className="flex-row-reverse justify-between mb-1">
+                    <Text className="text-sm text-purple-700 text-right">الحد الأسبوعي</Text>
+                    <Text className="text-sm text-purple-900 font-bold">
+                      {usage.weeklyUsed} / {usage.weeklyLimit}
+                    </Text>
+                  </View>
+                  <View className="h-3 bg-purple-200 rounded-full overflow-hidden">
+                    <View
+                      className="h-full bg-purple-500 rounded-full"
+                      style={{ width: `${weeklyPercent}%` }}
+                    />
+                  </View>
+                  <Text className="text-xs text-purple-500 text-right mt-1">
+                    متبقي هذا الأسبوع: {usage.weeklyLeft} جلسات
+                  </Text>
                 </View>
-                <Text className="text-xs text-purple-500 text-right mt-1">
-                  متبقي هذا الأسبوع: {usage.weeklyLeft} جلسات
-                </Text>
               </View>
-            </View>
-          </AnimatedCard>
-        )}
+            </AnimatedCard>
+          );
+        })()}
 
         {/* Monthly summary card - placeholder for now */}
         {current?.status === 'active' && (
