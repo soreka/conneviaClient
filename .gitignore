@@ -43,3 +43,6 @@ coverage/
 # generated native folders
 /ios
 /android
+
+# Pre-ship audit doc — kept local, NOT published to this public repo
+.claude/PRESHIP_AUDIT_*.md
