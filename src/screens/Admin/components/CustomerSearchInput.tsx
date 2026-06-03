@@ -34,6 +34,9 @@ export const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  // C-STATE-04: store the blur setTimeout handle so it can be cancelled on
+  // unmount (was a raw fire-and-forget setTimeout, unreferenceable).
+  const blurRef = useRef<NodeJS.Timeout | null>(null);
 
   const [triggerSearch, { data, isLoading, isFetching, error }] = useLazyAdminSearchCustomersQuery();
 
@@ -92,12 +95,32 @@ export const CustomerSearchInput: React.FC<CustomerSearchInputProps> = ({
   }, []);
 
   const handleBlur = useCallback(() => {
-    // Delay to allow press on dropdown items
-    setTimeout(() => {
+    // C-STATE-04: store the blur timer in blurRef so it can be cancelled if
+    // the component unmounts within the 200ms window (e.g. AddBookingModal
+    // closes right after selecting a customer). The cleanup effect below
+    // clears both refs on unmount.
+    if (blurRef.current) {
+      clearTimeout(blurRef.current);
+    }
+    blurRef.current = setTimeout(() => {
       setIsFocused(false);
       setShowDropdown(false);
     }, 200);
   }, []);
+
+  // C-STATE-04: clear BOTH the debounce ref AND the blur ref on unmount so
+  // no fire-and-forget timer attempts setState on an unmounted component.
+  useEffect(
+    () => () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      if (blurRef.current) {
+        clearTimeout(blurRef.current);
+      }
+    },
+    []
+  );
 
   return (
     <View style={{ position: 'relative', zIndex: 100 }}>

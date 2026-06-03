@@ -93,6 +93,17 @@ export const AdminCustomersScreen = () => {
     }, 500);
   };
 
+  // C-STATE-03: clear pending debounce timer on unmount so the orphaned
+  // setDebouncedSearch never fires on an unmounted component.
+  React.useEffect(
+    () => () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    },
+    []
+  );
+
   // Query
   const { data, isLoading, isFetching, refetch } = useAdminGetCustomersQuery({
     q: debouncedSearch || undefined,

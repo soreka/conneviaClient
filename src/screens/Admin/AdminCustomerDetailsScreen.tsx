@@ -117,8 +117,18 @@ export const AdminCustomerDetailsScreen = () => {
   const [patchSubscription, { isLoading: isSavingSubscription }] =
     useAdminPatchCustomerSubscriptionMutation();
 
-  // Initialize form state from data
+  // Initialize / resync form state from server data.
+  //
+  // C-NET-04: while the admin is mid-edit, a background refetch (focus or
+  // AppState 'active') would otherwise overwrite typed-but-unsaved changes.
+  // Guard the resync with the per-card isEditing flags so the server->local
+  // sync is skipped whenever ANY edit is in progress. The flags are in the
+  // dep array so the effect re-evaluates when edit mode toggles off (the
+  // existing handleCancel* paths reset the fields explicitly from `data`,
+  // so this effect doesn't need to re-fire on exit — but including the
+  // flags keeps React's exhaustive-deps invariant intact).
   useEffect(() => {
+    if (isEditingPersonal || isEditingHealth || isEditingNotes || isEditingSubscription) return;
     if (data) {
       setFirstName(data.personal.firstName || '');
       setLastName(data.personal.lastName || '');
@@ -132,7 +142,7 @@ export const AdminCustomerDetailsScreen = () => {
         setSubEndDate(data.subscription.endDate.split('T')[0]); // YYYY-MM-DD
       }
     }
-  }, [data]);
+  }, [data, isEditingPersonal, isEditingHealth, isEditingNotes, isEditingSubscription]);
 
   // Guarded refetch
   const asyncGuardedRefetch = useCallback(async () => {

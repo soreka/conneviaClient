@@ -79,7 +79,10 @@ export const AdminScheduleSettingsScreen = () => {
 
   // Toggle day enabled (optimistic update + persist)
   const handleToggleDay = async (dayOfWeek: number, enabled: boolean) => {
-    // Optimistic update
+    // C-NET-02: capture PRE-update snapshot BEFORE the optimistic mutation
+    // so a failure rolls back to the true prior state — not to the
+    // post-optimistic `localDays` value at catch time.
+    const prevDays = localDays;
     const newDays = localDays.map((d) =>
       d.dayOfWeek === dayOfWeek ? { ...d, enabled } : d
     );
@@ -93,8 +96,8 @@ export const AdminScheduleSettingsScreen = () => {
         position: 'bottom',
       });
     } catch (err) {
-      // Rollback
-      setLocalDays(localDays);
+      // Rollback to PRE-update snapshot
+      setLocalDays(prevDays);
       Toast.show({
         type: 'error',
         text1: 'خطأ في حفظ الإعدادات',
@@ -118,6 +121,10 @@ export const AdminScheduleSettingsScreen = () => {
 
   // Save day settings from modal
   const handleSaveDay = async (updatedDay: DaySettings) => {
+    // C-NET-02: capture PRE-update snapshot BEFORE the optimistic mutation
+    // so a failed save reverts to the true prior state — not to the
+    // post-optimistic `localDays` value at catch time.
+    const prevDays = localDays;
     const newDays = localDays.map((d) =>
       d.dayOfWeek === updatedDay.dayOfWeek ? updatedDay : d
     );
@@ -126,8 +133,8 @@ export const AdminScheduleSettingsScreen = () => {
     try {
       await updateSettings({ days: newDays }).unwrap();
       setSelectedDay(null);
-      
-      const prevLen = localDays.find(d => d.dayOfWeek === updatedDay.dayOfWeek)?.workPeriods.length ?? 0;
+
+      const prevLen = prevDays.find(d => d.dayOfWeek === updatedDay.dayOfWeek)?.workPeriods.length ?? 0;
       if (updatedDay.workPeriods.length > prevLen) {
         Toast.show({
           type: 'success',
@@ -142,6 +149,8 @@ export const AdminScheduleSettingsScreen = () => {
         });
       }
     } catch (err) {
+      // Rollback to PRE-update snapshot
+      setLocalDays(prevDays);
       Toast.show({
         type: 'error',
         text1: 'خطأ في حفظ الإعدادات',
