@@ -202,16 +202,25 @@ export const CompleteProfileWizard: React.FC = () => {
             <View className="w-10" />
           </View>
 
-          {/* Card container - starts higher, with shadow */}
-          <View className="flex-1 items-center pt-4">
+          {/* Card container - starts higher, with shadow.
+              NOTE: deliberately NO `flex-1` here. This subtree lives inside the
+              Screen's ScrollView (contentContainerStyle flexGrow:1). A `flex-1`
+              child inside a scroll container has no bounded height to fill, so it
+              collapsed to 0 and clipped the card's title/inputs on (re)mount
+              (visible as overlapping fields + missing text). Let the card flow at
+              its natural content height; the LinearGradient still fills the
+              viewport behind it. */}
+          <View className="items-center pt-4">
             <View className="w-full max-w-md">
               <Card className="border-0 rounded-2xl bg-white p-4 shadow-xl">
                 {/* Card header */}
-                <View className="pb-4 space-y-1">
+                {/* `space-y-*` does not translate in NativeWind 4 (per repo
+                    CLAUDE.md); use an explicit margin on the description. */}
+                <View className="pb-4">
                   <Text className="text-2xl font-bold text-[#666666] text-center">
                     {cardTitle}
                   </Text>
-                  <Text className="text-sm text-[#8C8C8C] text-center">
+                  <Text className="text-sm text-[#8C8C8C] text-center mt-1">
                     {cardDescription}
                   </Text>
                 </View>
