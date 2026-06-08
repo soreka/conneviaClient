@@ -22,6 +22,16 @@ jest.mock('react-native-toast-message', () => ({
   default: { show: jest.fn(), hide: jest.fn() },
 }));
 
+// C-STORE-03: stub Linking after react-native is loaded so the new
+// consent-line Privacy/Terms taps can be exercised without trying to open
+// a real URL. Only the two methods we care about are replaced.
+const mockOpenURL = jest.fn(() => Promise.resolve());
+const mockCanOpenURL = jest.fn(() => Promise.resolve(true));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const RN = require('react-native');
+RN.Linking.openURL = mockOpenURL;
+RN.Linking.canOpenURL = mockCanOpenURL;
+
 // Navigation
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -145,6 +155,77 @@ describe('CompleteProfileWizard - Step 2 / submit', () => {
       expect(mockNavigate).toHaveBeenCalledWith('CustomerTabs');
     });
   });
+});
+
+describe('CompleteProfileWizard - C-STORE-03: consent line + Privacy/Terms links', () => {
+  // C-STORE-03: this wizard is the point at which the app collects
+  // profile + health data (age, weight, multi-line health condition).
+  // Apple 5.1.1 / Play Data Safety requires a consent line referencing
+  // Privacy + Terms at the moment of collection, with the policy
+  // documents reachable via tappable links.
+  //
+  // Per Ahmed's decided scope, the consent line must:
+  //   - reference Privacy + Terms by name ("سياسة الخصوصية" + "الشروط والأحكام")
+  //   - expose two tappable links that call Linking.openURL with the
+  //     hosted policy URLs (https).
+  //
+  // The implementer chooses placement. The most natural spot is Step 2
+  // (the health-data step) right above the "حفظ وإنهاء" submit button,
+  // but the contract here is only that the links render and dispatch
+  // openURL somewhere in the wizard.
+
+  beforeEach(() => {
+    mockOpenURL.mockClear();
+    mockCanOpenURL.mockClear();
+  });
+
+  function advanceToStep2() {
+    renderWizard();
+    fireEvent.changeText(screen.getByPlaceholderText('مثال: سارة'), 'Sara');
+    fireEvent.changeText(screen.getByPlaceholderText('مثال: أحمد'), 'Tester');
+    fireEvent.changeText(screen.getByPlaceholderText('05xxxxxxxx'), '0501234567');
+    fireEvent.press(screen.getByText('التالي'));
+  }
+
+  test(
+    'C-STORE-03: Step 2 (health-data) renders a Privacy Policy link labeled "سياسة الخصوصية"',
+    () => {
+      advanceToStep2();
+      expect(screen.getByText('سياسة الخصوصية')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: Step 2 (health-data) renders a Terms link labeled "الشروط والأحكام"',
+    () => {
+      advanceToStep2();
+      expect(screen.getByText('الشروط والأحكام')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Privacy link in the wizard calls Linking.openURL with an https URL',
+    () => {
+      advanceToStep2();
+      fireEvent.press(screen.getByText('سياسة الخصوصية'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Terms link in the wizard calls Linking.openURL with an https URL',
+    () => {
+      advanceToStep2();
+      fireEvent.press(screen.getByText('الشروط والأحكام'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
+    }
+  );
 });
 
 describe('CompleteProfileWizard - CLIENT-2.2: KeyboardAvoidingView', () => {

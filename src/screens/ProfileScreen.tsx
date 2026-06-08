@@ -23,6 +23,8 @@ import {
   Check,
   X,
   Trash2,
+  Shield,
+  FileText,
 } from 'lucide-react-native';
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
@@ -36,6 +38,8 @@ import {
   useGetMySubscriptionUsageQuery,
   useDeleteMeMutation,
 } from '../features/api/apiSlice';
+import { PRIVACY_POLICY_URL, TERMS_URL } from '../constants/legal';
+import { openExternalUrl } from '../utils/openExternalUrl';
 
 const TOKEN_KEY = 'connevia.access_token';
 
@@ -703,11 +707,35 @@ export const ProfileScreen = () => {
               {/* Change Password */}
               <Pressable
                 onPress={handleChangePassword}
-                className="flex-row-reverse items-center justify-between py-3"
+                className="flex-row-reverse items-center justify-between py-3 border-b border-[#E8E3ED]"
               >
                 <View className="flex-row-reverse items-center">
                   <Lock size={18} color="#8C8C8C" />
                   <Text className="text-sm text-[#666666] mr-3">تغيير كلمة المرور</Text>
+                </View>
+                <ArrowRight size={18} color="#8C8C8C" style={{ transform: [{ scaleX: -1 }] }} />
+              </Pressable>
+
+              {/* C-STORE-03: Privacy Policy */}
+              <Pressable
+                onPress={() => openExternalUrl(PRIVACY_POLICY_URL)}
+                className="flex-row-reverse items-center justify-between py-3 border-b border-[#E8E3ED]"
+              >
+                <View className="flex-row-reverse items-center">
+                  <Shield size={18} color="#8C8C8C" />
+                  <Text className="text-sm text-[#666666] mr-3">سياسة الخصوصية</Text>
+                </View>
+                <ArrowRight size={18} color="#8C8C8C" style={{ transform: [{ scaleX: -1 }] }} />
+              </Pressable>
+
+              {/* C-STORE-03: Terms */}
+              <Pressable
+                onPress={() => openExternalUrl(TERMS_URL)}
+                className="flex-row-reverse items-center justify-between py-3"
+              >
+                <View className="flex-row-reverse items-center">
+                  <FileText size={18} color="#8C8C8C" />
+                  <Text className="text-sm text-[#666666] mr-3">الشروط والأحكام</Text>
                 </View>
                 <ArrowRight size={18} color="#8C8C8C" style={{ transform: [{ scaleX: -1 }] }} />
               </Pressable>

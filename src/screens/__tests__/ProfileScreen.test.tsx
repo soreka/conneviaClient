@@ -33,6 +33,18 @@ jest.mock('react-native-toast-message', () => ({
   default: { show: jest.fn(), hide: jest.fn() },
 }));
 
+// C-STORE-03: stub Linking so the new Privacy/Terms rows can be exercised
+// without trying to open a real URL. We replace `Linking.openURL` /
+// `Linking.canOpenURL` after importing react-native, leaving the rest of
+// the module untouched so the existing handleCallStudio / handleWhatsApp
+// (tel:/wa.me) Linking call sites in ProfileScreen.tsx still resolve.
+const mockOpenURL = jest.fn(() => Promise.resolve());
+const mockCanOpenURL = jest.fn(() => Promise.resolve(true));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const RN = require('react-native');
+RN.Linking.openURL = mockOpenURL;
+RN.Linking.canOpenURL = mockCanOpenURL;
+
 // Hooks the screen consumes from RTK Query and Redux.
 let mockMeData: any = null;
 let mockMeLoading = false;
@@ -210,6 +222,68 @@ describe('ProfileScreen - CLIENT-2.1: dead tap targets', () => {
       );
       // If a Pressable with no `onPress=` precedes <Camera, that's the bug.
       expect(cameraBlock).toBeNull();
+    }
+  );
+});
+
+describe('ProfileScreen - C-STORE-03: Privacy Policy + Terms links in Account Settings', () => {
+  // C-STORE-03: the app collects PII + health data but has no in-app
+  // Privacy Policy / Terms links. Apple 5.1.1 + Play Data Safety blocker.
+  //
+  // Scope (decided by Ahmed): Account Settings card gets two new rows -
+  //   "سياسة الخصوصية" (Privacy Policy) and "الشروط والأحكام" (Terms).
+  // Each row is a Pressable that calls Linking.openURL with the hosted
+  // policy URL (https, served from notion.site once published).
+  //
+  // The implementer is free to use any constants module (or inline URLs)
+  // to source the actual hosted URLs - we only assert that openURL is
+  // called once per row with some https URL. We do NOT import a prod
+  // constants module (e.g. src/constants/legal.ts) because it does not
+  // exist yet and importing a missing module would break suite collection
+  // rather than produce a clean failing test.
+
+  beforeEach(() => {
+    mockOpenURL.mockClear();
+    mockCanOpenURL.mockClear();
+  });
+
+  test(
+    'C-STORE-03: Account Settings card shows a Privacy Policy row labeled "سياسة الخصوصية"',
+    () => {
+      renderProfile();
+      expect(screen.getByText('سياسة الخصوصية')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: Account Settings card shows a Terms row labeled "الشروط والأحكام"',
+    () => {
+      renderProfile();
+      expect(screen.getByText('الشروط والأحكام')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Privacy Policy row calls Linking.openURL with an https URL',
+    () => {
+      renderProfile();
+      fireEvent.press(screen.getByText('سياسة الخصوصية'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Terms row calls Linking.openURL with an https URL',
+    () => {
+      renderProfile();
+      fireEvent.press(screen.getByText('الشروط والأحكام'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
     }
   );
 });

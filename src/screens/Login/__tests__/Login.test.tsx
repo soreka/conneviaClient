@@ -58,6 +58,16 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 import Login from '../index';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+// C-STORE-03: stub Linking after react-native is loaded. We replace just
+// the two methods we care about; everything else (LinearGradient native
+// shim, etc) stays as jest-expo defaults.
+const mockOpenURL = jest.fn(() => Promise.resolve());
+const mockCanOpenURL = jest.fn(() => Promise.resolve(true));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const RN = require('react-native');
+RN.Linking.openURL = mockOpenURL;
+RN.Linking.canOpenURL = mockCanOpenURL;
+
 const renderLogin = () =>
   render(
     <SafeAreaProvider
@@ -116,4 +126,62 @@ describe('Login screen', () => {
       expect.objectContaining({ type: 'auth/setCredentials' })
     );
   });
+});
+
+describe('Login screen - C-STORE-03: Privacy Policy + Terms links (logged-out)', () => {
+  // C-STORE-03: Apple reviewers must be able to open the Privacy Policy
+  // and Terms WITHOUT logging in. Per Ahmed's decided scope, the logged-out
+  // Login screen must expose two tappable links - "سياسة الخصوصية" and
+  // "الشروط والأحكام" - each calling Linking.openURL with the hosted URL.
+  //
+  // The real Login UI lives under src/screens/Login/ (components
+  // LoginHeader.tsx / LoginActionCard.tsx) - NOT the dead
+  // src/features/auth/LoginScreen.tsx. The implementer is free to add
+  // the links inside any of the existing Login subcomponents or in a new
+  // sibling component, as long as they render and dispatch openURL.
+
+  beforeEach(() => {
+    mockOpenURL.mockClear();
+    mockCanOpenURL.mockClear();
+  });
+
+  test(
+    'C-STORE-03: logged-out Login screen renders a Privacy Policy link labeled "سياسة الخصوصية"',
+    () => {
+      renderLogin();
+      expect(screen.getByText('سياسة الخصوصية')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: logged-out Login screen renders a Terms link labeled "الشروط والأحكام"',
+    () => {
+      renderLogin();
+      expect(screen.getByText('الشروط والأحكام')).toBeTruthy();
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Privacy Policy link calls Linking.openURL with an https URL',
+    () => {
+      renderLogin();
+      fireEvent.press(screen.getByText('سياسة الخصوصية'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
+    }
+  );
+
+  test(
+    'C-STORE-03: pressing the Terms link calls Linking.openURL with an https URL',
+    () => {
+      renderLogin();
+      fireEvent.press(screen.getByText('الشروط والأحكام'));
+      expect(mockOpenURL).toHaveBeenCalledTimes(1);
+      expect(mockOpenURL).toHaveBeenCalledWith(
+        expect.stringMatching(/^https?:\/\//)
+      );
+    }
+  );
 });

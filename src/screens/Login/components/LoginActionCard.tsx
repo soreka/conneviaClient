@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { PRIVACY_POLICY_URL, TERMS_URL } from '../../../constants/legal';
+import { openExternalUrl } from '../../../utils/openExternalUrl';
 
 interface LoginActionCardProps {
   onLogin: () => void;
@@ -58,6 +60,24 @@ export const LoginActionCard: React.FC<LoginActionCardProps> = ({
         >
           <Text className="text-[#666666] text-lg font-semibold">إنشاء حساب جديد</Text>
         </Pressable>
+
+        {/* C-STORE-03: Privacy Policy + Terms links reachable pre-auth
+            (Apple reviewers must be able to open them before logging in). */}
+        <View className="flex-row items-center justify-center mt-2">
+          <Pressable
+            onPress={() => openExternalUrl(PRIVACY_POLICY_URL)}
+            hitSlop={8}
+          >
+            <Text className="text-xs text-[#A68CD4] underline">سياسة الخصوصية</Text>
+          </Pressable>
+          <Text className="text-xs text-[#8C8C8C] mx-2">·</Text>
+          <Pressable
+            onPress={() => openExternalUrl(TERMS_URL)}
+            hitSlop={8}
+          >
+            <Text className="text-xs text-[#A68CD4] underline">الشروط والأحكام</Text>
+          </Pressable>
+        </View>
 
       </View>
     </View>

@@ -13,6 +13,8 @@ import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
 import { resetToLogin } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { PRIVACY_POLICY_URL, TERMS_URL } from '../constants/legal';
+import { openExternalUrl } from '../utils/openExternalUrl';
 
 type Step = 1 | 2;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -310,6 +312,33 @@ export const CompleteProfileWizard: React.FC = () => {
                       inputClassName="min-h-[96px]"
                       rightIcon={<HeartPulse size={18} color="#8C8C8C" />}
                     />
+
+                    {/* C-STORE-03: consent line referencing Privacy + Terms at
+                        the point of health-data collection (Apple 5.1.1 /
+                        Play Data Safety). The two links are tappable and
+                        open the hosted policy documents. */}
+                    <View className="flex-row-reverse flex-wrap items-center justify-center">
+                      <Text className="text-xs text-[#8C8C8C]">
+                        بالمتابعة فإنكِ توافقين على{' '}
+                      </Text>
+                      <Pressable
+                        onPress={() => openExternalUrl(PRIVACY_POLICY_URL)}
+                        hitSlop={8}
+                      >
+                        <Text className="text-xs text-[#A68CD4] underline">
+                          سياسة الخصوصية
+                        </Text>
+                      </Pressable>
+                      <Text className="text-xs text-[#8C8C8C]"> و </Text>
+                      <Pressable
+                        onPress={() => openExternalUrl(TERMS_URL)}
+                        hitSlop={8}
+                      >
+                        <Text className="text-xs text-[#A68CD4] underline">
+                          الشروط والأحكام
+                        </Text>
+                      </Pressable>
+                    </View>
 
                     <View className="flex-row gap-2">
                       <View className="flex-1">
