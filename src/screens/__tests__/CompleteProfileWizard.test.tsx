@@ -67,6 +67,10 @@ jest.mock('../../navigation/navigationRef', () => ({
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CompleteProfileWizard } from '../CompleteProfileWizard';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Toast = require('react-native-toast-message').default;
+const mockToastShow = Toast.show as jest.Mock;
+const mockToastHide = Toast.hide as jest.Mock;
 
 const renderWizard = () =>
   render(
@@ -86,6 +90,9 @@ beforeEach(() => {
   mockDispatch.mockReset();
   mockPatchMeFull.mockReset().mockResolvedValue({ user: { profileCompleted: true } });
   mockPatchMeFullTrigger.mockClear();
+  mockRefetchMe.mockClear();
+  mockToastShow.mockClear();
+  mockToastHide.mockClear();
 });
 
 describe('CompleteProfileWizard - Step 1', () => {
@@ -138,7 +145,16 @@ describe('CompleteProfileWizard - Step 2 / submit', () => {
     fireEvent.press(screen.getByText('التالي'));
   }
 
-  test('calls patchMeFull and navigates to CustomerTabs on success', async () => {
+  test('on success: saves via patchMeFull, shows success toast, and does NOT navigate manually (RootNavigator swaps via conditional rendering)', async () => {
+    // Regression guard. The old implementation called
+    // navigation.navigate('CustomerTabs') after a successful save, which
+    // triggered React Navigation's "action 'NAVIGATE' ... was not handled
+    // by any navigator" warning -- at that moment RootNavigator only has
+    // the wizard screen mounted (it renders Login / CompleteProfileWizard /
+    // CustomerTabs conditionally on auth + profileCompleted). The correct
+    // pattern with conditional rendering is to NOT navigate manually:
+    // refetchMe() flips profileCompleted -> true, and RootNavigator swaps
+    // the active screen to CustomerTabs on its own.
     advanceToStep2();
     fireEvent.changeText(screen.getByPlaceholderText('مثال: 28'), '28');
     fireEvent.changeText(screen.getByPlaceholderText('مثال: 62'), '60');
@@ -148,12 +164,39 @@ describe('CompleteProfileWizard - Step 2 / submit', () => {
     );
     fireEvent.press(screen.getByText('حفظ وإنهاء'));
 
+    // patchMeFull called exactly once with the typed/trimmed payload.
     await waitFor(() => {
-      expect(mockPatchMeFullTrigger).toHaveBeenCalled();
+      expect(mockPatchMeFullTrigger).toHaveBeenCalledTimes(1);
     });
+    expect(mockPatchMeFullTrigger).toHaveBeenCalledWith({
+      firstName: 'Sara',
+      lastName: 'Tester',
+      phone: '0501234567',
+      age: 28,
+      weight: 60,
+      healthCondition: 'لا يوجد',
+    });
+
+    // Success toast is the user-visible signal of success.
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('CustomerTabs');
+      expect(mockToastShow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'success',
+          text1: 'تم حفظ البيانات بنجاح',
+        })
+      );
     });
+
+    // refetchMe is fired so RTK Query reloads /v1/me; once
+    // profileCompleted flips true, RootNavigator swaps screens.
+    await waitFor(() => {
+      expect(mockRefetchMe).toHaveBeenCalled();
+    });
+
+    // The critical regression guard: NO manual navigate call. The wizard
+    // must rely on RootNavigator's conditional rendering, not navigate().
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith('CustomerTabs');
   });
 });
 

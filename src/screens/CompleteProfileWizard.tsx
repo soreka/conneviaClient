@@ -2,8 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Alert, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Phone, Mail, HeartPulse, ArrowRight } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 
 import { Screen, Card, Button, Progress } from '../components/UI';
@@ -12,12 +10,10 @@ import { useGetMeQuery, usePatchMeFullMutation } from '../features/api/apiSlice'
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
 import { resetToLogin } from '../navigation/navigationRef';
-import type { RootStackParamList } from '../navigation/RootNavigator';
 import { PRIVACY_POLICY_URL, TERMS_URL } from '../constants/legal';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
 type Step = 1 | 2;
-type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const isValidPhone = (phone: string) => {
   const normalized = phone.replace(/\s+/g, '');
@@ -25,7 +21,6 @@ const isValidPhone = (phone: string) => {
 };
 
 export const CompleteProfileWizard: React.FC = () => {
-  const navigation = useNavigation<Nav>();
   const dispatch = useAppDispatch();
 
   const { data: meData, refetch: refetchMe } = useGetMeQuery();
@@ -108,7 +103,7 @@ export const CompleteProfileWizard: React.FC = () => {
         },
       },
     ]);
-  }, [dispatch, navigation]);
+  }, [dispatch]);
 
   const handleSubmit = useCallback(async () => {
     if (!validateStep2()) return;
@@ -129,9 +124,13 @@ export const CompleteProfileWizard: React.FC = () => {
           text1: 'تم حفظ البيانات بنجاح',
           position: 'bottom',
         });
-        // Refetch user data to update the cache, then navigate
+        // Refetch /v1/me so the RTK Query cache flips profileCompleted -> true.
+        // RootNavigator renders screens conditionally on that flag, so it swaps
+        // CompleteProfileWizard -> CustomerTabs automatically. Do NOT navigate
+        // manually: at this point the navigator only has the wizard screen
+        // mounted, so navigate('CustomerTabs') is unhandled (RN warns) and is
+        // redundant with the conditional rendering.
         await refetchMe();
-        navigation.navigate('CustomerTabs');
       } else {
         Toast.show({
           type: 'error',
@@ -156,7 +155,6 @@ export const CompleteProfileWizard: React.FC = () => {
     age,
     weight,
     healthCondition,
-    navigation,
     refetchMe,
   ]);
 
