@@ -343,6 +343,93 @@ describe('useAuth - JWT logging (CLIENT-1.5)', () => {
   );
 });
 
+describe('useAuth - cross-provider bootstrap collision (S-AUTH-04)', () => {
+  // S-AUTH-04: server now returns 409 {ok:false, error:'Email already in use',
+  // code:'EMAIL_IN_USE', provider:'google'|'apple'|'facebook'|'microsoft'|'email'|'<raw>'|'unknown'}
+  // from POST /v1/me/bootstrap when a COMPLETED account with the same email
+  // already exists under a different Auth0 provider.
+  //
+  // Current client (useAuth.ts:175-191) only special-cases
+  // ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED via `response.data.error`. The new
+  // `code: 'EMAIL_IN_USE'` falls through into the generic catch, which:
+  //   - leaves the access token in place (user is half-logged-in / stuck), and
+  //   - surfaces a raw 'request failed with status code 409' message.
+  //
+  // Intended client behavior on EMAIL_IN_USE:
+  //   1. Clear BOTH the access token and the refresh token (setAccessToken(null),
+  //      setRefreshToken(null)) so the user is returned cleanly to the login screen.
+  //   2. state.user = null.
+  //   3. state.error = a friendly, provider-named Arabic message that contains:
+  //        - the provider's display name (provider:'google' -> 'Google'), and
+  //        - the steer phrase 'يرجى تسجيل الدخول بنفس الطريقة'
+  //      so the user knows WHICH method to re-use.
+  //
+  // Provider -> display-name mapping the implementer must mirror verbatim:
+  //   google    -> 'Google'
+  //   apple     -> 'Apple'
+  //   facebook  -> 'Facebook'
+  //   microsoft -> 'Microsoft'
+  //   email     -> 'البريد الإلكتروني'
+  //   <anything else / 'unknown'> -> 'مزود آخر'
+  //
+  // Suggested error string shape (the assertion below only pins the substrings
+  // that matter — implementer may phrase the rest):
+  //   `هذا البريد مسجّل مسبقاً عبر ${displayName}. يرجى تسجيل الدخول بنفس الطريقة.`
+  test.failing(
+    'S-AUTH-04: bootstrap 409 EMAIL_IN_USE clears token and sets a provider-named error',
+    async () => {
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-xprov' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-xprov',
+        refreshToken: 'refresh-token-xprov',
+      });
+      // Axios-shaped error mirroring the new server contract.
+      mockApiPost.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: {
+          status: 409,
+          data: {
+            ok: false,
+            error: 'Email already in use',
+            code: 'EMAIL_IN_USE',
+            provider: 'google',
+          },
+        },
+        message: 'Request failed with status code 409',
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      // Wait for the bootstrap-catch to settle into the final state.
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      // (1) Token cleared — user is NOT left half-logged-in.
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      // Refresh token must also be cleared (single-flight interceptor would
+      // otherwise try to renew a session that the server just rejected).
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.accessToken).toBeNull();
+
+      // (2) user is null.
+      expect(result.current.user).toBeNull();
+
+      // (3) Error is the provider-named Arabic message:
+      //     - contains the provider display name 'Google' (from provider:'google'), and
+      //     - contains the steer phrase 'يرجى تسجيل الدخول بنفس الطريقة'.
+      // (We assert substrings rather than the exact string so the implementer
+      // can phrase the surrounding copy without breaking the guard.)
+      expect(result.current.error).toEqual(expect.stringContaining('Google'));
+      expect(result.current.error).toEqual(
+        expect.stringContaining('يرجى تسجيل الدخول بنفس الطريقة')
+      );
+    }
+  );
+});
+
 describe('useAuth - redirect URI scheme (CLIENT-1.6)', () => {
   // CLIENT-1.6 (LAUNCH BLOCKER): useAuth.ts:50-51 hardcodes
   //   AuthSession.makeRedirectUri({ scheme: 'connevia', path: 'login-callback' })
