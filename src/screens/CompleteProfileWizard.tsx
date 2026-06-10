@@ -12,12 +12,17 @@ import { logout } from '../features/auth/authSlice';
 import { resetToLogin } from '../navigation/navigationRef';
 import { PRIVACY_POLICY_URL, TERMS_URL } from '../constants/legal';
 import { openExternalUrl } from '../utils/openExternalUrl';
+import { setAccessToken, setRefreshToken } from '../api';
 
 type Step = 1 | 2;
 
 const isValidPhone = (phone: string) => {
-  const normalized = phone.replace(/\s+/g, '');
-  return normalized.startsWith('05') && normalized.length >= 9;
+  // Audit 2026-06-10 finding #15: align with the server (`/^05\d{8}$/`) and
+  // real IL mobile shape. Strip all non-digits first so "05X XXXX XXX" or
+  // "+972-50-..." (after country-code trim) still validates cleanly when
+  // typed naturally; reject any leftover non-digit cruft.
+  const digitsOnly = phone.replace(/\D/g, '');
+  return /^05\d{8}$/.test(digitsOnly);
 };
 
 export const CompleteProfileWizard: React.FC = () => {
@@ -94,10 +99,21 @@ export const CompleteProfileWizard: React.FC = () => {
       {
         text: 'نعم',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           if (__DEV__) console.log('[Logout] CompleteProfileWizard - BEFORE dispatch(logout)');
           dispatch(logout());
-          if (__DEV__) console.log('[Logout] CompleteProfileWizard - AFTER dispatch(logout), calling resetToLogin');
+          // Audit 2026-06-10 finding #23: AWAIT the SecureStore token clears
+          // BEFORE navigating back to Login. The earlier fire-and-forget
+          // pattern allowed a force-quit race where the next cold start
+          // could re-auth a userless session against a still-persisted
+          // access/refresh token.
+          try {
+            await setAccessToken(null);
+            await setRefreshToken(null);
+          } catch (e) {
+            if (__DEV__) console.warn('[Logout] CompleteProfileWizard - token clear failed', e);
+          }
+          if (__DEV__) console.log('[Logout] CompleteProfileWizard - tokens cleared, calling resetToLogin');
           resetToLogin();
           if (__DEV__) console.log('[Logout] CompleteProfileWizard - AFTER resetToLogin');
         },
@@ -139,12 +155,36 @@ export const CompleteProfileWizard: React.FC = () => {
           position: 'bottom',
         });
       }
-    } catch (_e) {
-      Toast.show({
-        type: 'error',
-        text1: 'حدث خطأ أثناء حفظ البيانات',
-        position: 'bottom',
-      });
+    } catch (e) {
+      // Audit 2026-06-10 finding #8: don't blindly swallow the error. RTK
+      // Query rejects with a FetchBaseQueryError shaped { status, data }.
+      // The server's central Zod handler returns
+      // { error: 'Validation failed', code: 'VALIDATION_ERROR', details }
+      // on a 400 — surface that to the user with an actionable Arabic prompt
+      // so a validation rejection doesn't permanently strand the wizard.
+      // Other causes (network/5xx/timeout) keep a generic Arabic message.
+      const status = (e as { status?: number | string } | undefined)?.status;
+      const code = (e as { data?: { code?: string } } | undefined)?.data?.code;
+
+      if (__DEV__) {
+        console.warn('[CompleteProfileWizard] patchMeFull failed', { status, code });
+      }
+
+      if (status === 400 || code === 'VALIDATION_ERROR') {
+        Toast.show({
+          type: 'error',
+          text1: 'بعض الحقول غير صحيحة',
+          text2: 'يرجى التأكد من صحة الاسم والهاتف والعمر والوزن ثم المحاولة مرة أخرى',
+          position: 'bottom',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'حدث خطأ أثناء حفظ البيانات',
+          text2: 'يرجى المحاولة مرة أخرى',
+          position: 'bottom',
+        });
+      }
     }
   }, [
     validateStep2,

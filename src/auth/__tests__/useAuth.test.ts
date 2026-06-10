@@ -193,22 +193,43 @@ describe('useAuth - happy path login', () => {
     expect(result.current.error).toBeNull();
   });
 
-  test('a failed bootstrap leaves the token but sets an error', async () => {
+  test('a failed bootstrap clears both tokens and shows a friendly Arabic error', async () => {
+    // Per AUTH_AUDIT_2026-06-10 Batch 1 (findings #7 / #16), bootstrap failures
+    // no longer leave the freshly-minted token in place with a raw English
+    // passthrough. The new contract: BOTH tokens are cleared (no half-logged-in
+    // strand) and the error is a friendly Arabic string — never raw
+    // `e.message` shrapnel like 'server-down' / 'Request failed' / 'Network'.
     setAuthRequestState({
       response: { type: 'success', params: { code: 'auth-code-456' } },
     });
     mockExchangeCodeAsync.mockResolvedValueOnce({
       accessToken: 'access-token-456',
+      refreshToken: 'refresh-token-456',
     });
     mockApiPost.mockRejectedValueOnce(new Error('server-down'));
 
     const { result } = renderHook(() => useAuth());
 
     await waitFor(() => {
-      expect(result.current.error).toBe('server-down');
+      expect(result.current.error).not.toBeNull();
     });
-    expect(result.current.accessToken).toBe('access-token-456');
+
+    // Both tokens cleared — no strand.
+    expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+    expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+
+    // Final state: user/token nulled out.
     expect(result.current.user).toBeNull();
+    expect(result.current.accessToken).toBeNull();
+
+    // Friendly Arabic — never the raw English shrapnel.
+    const err = result.current.error ?? '';
+    expect(typeof err).toBe('string');
+    expect(err.length).toBeGreaterThan(0);
+    expect(err).toMatch(/[؀-ۿ]/); // Arabic Unicode block
+    expect(err).not.toContain('server-down');
+    expect(err).not.toContain('Request failed');
+    expect(err).not.toContain('Network');
   });
 
   test('ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED on bootstrap forces logout', async () => {
@@ -428,6 +449,449 @@ describe('useAuth - cross-provider bootstrap collision (S-AUTH-04)', () => {
       );
     }
   );
+});
+
+// =============================================================================
+// 2026-06-10 AUTH AUDIT — Batch 1 useAuth error-handling guards
+// (`.claude/ops/AUTH_AUDIT_2026-06-10.md` — findings #2, #3, #4, #5, #7, #10,
+//  #11, #14, #16).
+//
+// Two root themes the audit collapses these findings into:
+//   (a) Raw English `error.message` is echoed verbatim onto an Arabic-first
+//       Login screen ("Request failed with status code 500", "Network Error",
+//       "timeout of 15000ms exceeded", "(error)"). The intended behavior is a
+//       FIXED friendly Arabic string per branch, with the raw text only
+//       __DEV__-logged.
+//   (b) On ANY bootstrap-POST failure, useAuth currently keeps the just-minted
+//       access token (and the refresh token in the offline_access world) while
+//       leaving user=null — stranding the user half-logged-in (#3,#4,#5,#7,#16).
+//       Intended: clear BOTH tokens (setAccessToken(null) + setRefreshToken(null))
+//       so the user is returned cleanly to Login and the api.ts 401 single-flight
+//       interceptor doesn't try to renew a rejected session.
+//
+// All guards below use test.failing because the corrected behavior is NOT YET
+// IMPLEMENTED (the implementer will land Batch 1 next). Each guard's body
+// asserts the INTENDED behavior; against today's code each assertion currently
+// fails (so test.failing reports as passing). When Batch 1 lands the bodies
+// will pass and Jest will report "Failing test passed even though it was
+// supposed to fail" — the tester drops `.failing`.
+//
+// Substring strategy: we DO NOT pin the exact Arabic copy (the implementer may
+// phrase the surrounding text). We pin (i) it does NOT contain the raw English
+// shrapnel that today's code leaks, and (ii) the tokens are cleared. This
+// keeps the guards stable across copy-polish edits.
+// =============================================================================
+
+describe('useAuth - bootstrap error handling (audit #3, #4, #5, #7, #14, #16)', () => {
+  // A friendly Arabic string must NEVER contain any of these raw English
+  // shrapnel substrings that today's `e.message`/`response.type` path leaks.
+  const ENGLISH_LEAKS = [
+    'Request failed',
+    'Network',
+    'timeout',
+    'status code',
+    'undefined',
+    '(error)',
+    'server-down',
+    '[object Object]',
+  ] as const;
+
+  function assertFriendlyArabic(message: string | null | undefined) {
+    expect(typeof message).toBe('string');
+    expect(message).not.toBeNull();
+    expect((message ?? '').length).toBeGreaterThan(0);
+    // Must contain at least one Arabic character (Unicode block U+0600–U+06FF).
+    expect(message).toMatch(/[؀-ۿ]/);
+    for (const leak of ENGLISH_LEAKS) {
+      expect(message ?? '').not.toContain(leak);
+    }
+  }
+
+  test(
+    'AUDIT-#3: bootstrap network error -> friendly Arabic + BOTH tokens cleared (no strand)',
+    async () => {
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-net' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-net',
+        refreshToken: 'refresh-token-net',
+      });
+      // A bare axios "Network Error" — no `.response` (request never reached
+      // the server). Today useAuth surfaces `e.message` ("Network Error") and
+      // keeps the access token. Intended: friendly Arabic + both tokens cleared.
+      mockApiPost.mockRejectedValueOnce(
+        Object.assign(new Error('Network Error'), { isAxiosError: true })
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      // Token strand: both tokens MUST be cleared so the api.ts 401
+      // interceptor cannot renew a rejected session.
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+    }
+  );
+
+  test(
+    'AUDIT-#4: bootstrap 5xx -> friendly Arabic + BOTH tokens cleared',
+    async () => {
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-5xx' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-5xx',
+        refreshToken: 'refresh-token-5xx',
+      });
+      // Server-side crash: 500 with NO machine code (just `error` text).
+      mockApiPost.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 500, data: { ok: false, error: 'Internal server error' } },
+        message: 'Request failed with status code 500',
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+    }
+  );
+
+  test(
+    'AUDIT-#5: bootstrap 15s timeout -> friendly Arabic + BOTH tokens cleared',
+    async () => {
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-timeout' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-timeout',
+        refreshToken: 'refresh-token-timeout',
+      });
+      // Axios timeout shape — no `.response` and ECONNABORTED code.
+      mockApiPost.mockRejectedValueOnce(
+        Object.assign(new Error('timeout of 15000ms exceeded'), {
+          isAxiosError: true,
+          code: 'ECONNABORTED',
+        })
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+    }
+  );
+
+  test(
+    'AUDIT-#14: bootstrap 4xx WITHOUT a machine code -> friendly Arabic + BOTH tokens cleared',
+    async () => {
+      // 429 rate-limited with no `code` — must NOT echo .message.
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-429' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-429',
+        refreshToken: 'refresh-token-429',
+      });
+      mockApiPost.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 429, data: { ok: false, error: 'Too Many Requests' } },
+        message: 'Request failed with status code 429',
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.user).toBeNull();
+    }
+  );
+
+  test(
+    'AUDIT-#7 + #16: bootstrap generic-Error -> user is null AND token cleared (no strand)',
+    async () => {
+      // Captures the broad strand class: any bootstrap rejection currently leaves
+      // accessToken:access + user:null. Intended: cleared, no strand.
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-generic' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-generic',
+        refreshToken: 'refresh-token-generic',
+      });
+      mockApiPost.mockRejectedValueOnce(new Error('server-down'));
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      // The strand: token must NOT remain set with user:null.
+      // (Today: result.current.accessToken === 'access-token-generic'.)
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      assertFriendlyArabic(result.current.error);
+    }
+  );
+
+  test(
+    'AUDIT (defensive): bootstrap 409 with code:EMAIL_REQUIRED -> friendly Arabic about email permission + tokens cleared',
+    async () => {
+      // Defensive guard for the server's future blank-email branch
+      // (#12 in the audit: `bootstrapUser.ts:87` will reject with 422/409
+      // EMAIL_REQUIRED instead of fabricating @unknown.local). The client must
+      // handle it the same way as any other recognized failure: friendly
+      // Arabic + clear both tokens. The message should mention email permission
+      // (Arabic word "البريد" — "the email" — is the natural copy hook).
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-email-req' } },
+      });
+      mockExchangeCodeAsync.mockResolvedValueOnce({
+        accessToken: 'access-token-email-req',
+        refreshToken: 'refresh-token-email-req',
+      });
+      mockApiPost.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: {
+          status: 409,
+          data: { ok: false, error: 'Email required', code: 'EMAIL_REQUIRED' },
+        },
+        message: 'Request failed with status code 409',
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      // Must reference the email (Arabic "البريد") so the user understands the
+      // permission they need to re-grant in the social-login dialog.
+      expect(result.current.error ?? '').toContain('البريد');
+      expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+      expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+    }
+  );
+});
+
+describe('useAuth - outer effect-catch + response.type=error (audit #2, #10)', () => {
+  const ENGLISH_LEAKS = [
+    'Request failed',
+    'Network',
+    'timeout',
+    'status code',
+    'undefined',
+    '(error)',
+    '[object Object]',
+  ] as const;
+
+  function assertFriendlyArabic(message: string | null | undefined) {
+    expect(typeof message).toBe('string');
+    expect(message).not.toBeNull();
+    expect((message ?? '').length).toBeGreaterThan(0);
+    expect(message).toMatch(/[؀-ۿ]/);
+    for (const leak of ENGLISH_LEAKS) {
+      expect(message ?? '').not.toContain(leak);
+    }
+  }
+
+  test(
+    'AUDIT-#2: token-exchange failure (outer catch) -> friendly Arabic, never raw e.message',
+    async () => {
+      // Audit #2: `useAuth.ts:229-233` outer catch sets `error: e.message`
+      // which today is "Request failed with status code 400" or
+      // "Network Error" — echoed verbatim onto the Arabic-first Login screen.
+      // Intended: a fixed friendly Arabic string; raw text only __DEV__-logged.
+      setAuthRequestState({
+        response: { type: 'success', params: { code: 'auth-code-exchange-fail' } },
+      });
+      mockExchangeCodeAsync.mockRejectedValueOnce(
+        Object.assign(new Error('Request failed with status code 400'), {
+          isAxiosError: true,
+        })
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      // No strand: token must not be set, user must be null.
+      expect(result.current.accessToken).toBeNull();
+      expect(result.current.user).toBeNull();
+    }
+  );
+
+  test(
+    "AUDIT-#10: response.type==='error' -> friendly Arabic, NOT containing the raw '(error)' substring",
+    async () => {
+      // Audit #10: useAuth.ts:93-100 interpolates the raw `response.type`
+      // ("error", "locked", ...) into the Arabic message ->
+      // "فشل تسجيل الدخول (error)" which is half English shrapnel.
+      // Intended: a fixed friendly Arabic string; raw type only __DEV__-logged.
+      setAuthRequestState({
+        // AuthSession may also include error_description in real life; we don't
+        // require the impl to read it — just to NOT echo the raw `.type`.
+        response: { type: 'error', error: { message: 'access_denied' } } as any,
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      assertFriendlyArabic(result.current.error);
+      // The current bug literally embeds "(error)" — must be gone.
+      expect(result.current.error ?? '').not.toContain('(error)');
+    }
+  );
+});
+
+describe('useAuth - login() clears prior error at start (audit #11)', () => {
+  // Audit #11: `useAuth.ts:94-101` — a prior error from a failed/cancelled
+  // login persists across the next attempt. Intended: `login()` clears
+  // `state.error` at the very start so the Login screen does not flash a
+  // stale red banner while the next attempt is in flight.
+
+  test(
+    'AUDIT-#11: login() clears any previous state.error at its start',
+    async () => {
+      // Step 1: produce a previous error via a failed response (response.type
+      // !== 'success'/'dismiss' -> sets state.error per useAuth.ts:94-100).
+      setAuthRequestState({
+        response: { type: 'error', error: { message: 'access_denied' } } as any,
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      // Step 2: invoke login() — it should immediately clear state.error,
+      // regardless of whether promptAsync ultimately succeeds. We don't
+      // resolve promptAsync; we just check that the moment login() is awaited,
+      // the prior error is gone.
+      const slowPromptAsync = jest.fn(
+        () => new Promise(() => {
+          /* never resolves — we only care about the synchronous error clear */
+        })
+      );
+      setAuthRequestState({ promptAsync: slowPromptAsync });
+
+      // Fire login() but don't await it (it would hang). Then assert error
+      // cleared on the next microtask.
+      act(() => {
+        void result.current.login();
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBeNull();
+      });
+    }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Regression guards (NOT .failing) — the audit fixes must not break either
+// of the existing recognized-code branches.
+// ---------------------------------------------------------------------------
+
+describe('useAuth - existing recognized-code branches still pass (regression)', () => {
+  test('REGRESSION: ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED still surfaces "تم حذف الحساب" + clears token', async () => {
+    setAuthRequestState({
+      response: { type: 'success', params: { code: 'auth-code-acct-del' } },
+    });
+    mockExchangeCodeAsync.mockResolvedValueOnce({
+      accessToken: 'access-token-acct-del',
+    });
+    mockApiPost.mockRejectedValueOnce({
+      response: { data: { error: 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED' } },
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('تم حذف الحساب');
+    });
+    expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+    expect(result.current.accessToken).toBeNull();
+    expect(result.current.user).toBeNull();
+  });
+
+  test('REGRESSION: EMAIL_IN_USE still surfaces a provider-named Arabic message + clears BOTH tokens', async () => {
+    setAuthRequestState({
+      response: { type: 'success', params: { code: 'auth-code-xprov-reg' } },
+    });
+    mockExchangeCodeAsync.mockResolvedValueOnce({
+      accessToken: 'access-token-xprov-reg',
+      refreshToken: 'refresh-token-xprov-reg',
+    });
+    mockApiPost.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          ok: false,
+          error: 'Email already in use',
+          code: 'EMAIL_IN_USE',
+          provider: 'apple',
+        },
+      },
+      message: 'Request failed with status code 409',
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
+
+    // Provider-named: 'apple' -> 'Apple' display name.
+    expect(result.current.error).toEqual(expect.stringContaining('Apple'));
+    expect(result.current.error).toEqual(
+      expect.stringContaining('يرجى تسجيل الدخول بنفس الطريقة')
+    );
+    expect(mockSetAccessToken).toHaveBeenLastCalledWith(null);
+    expect(mockSetRefreshToken).toHaveBeenLastCalledWith(null);
+    expect(result.current.accessToken).toBeNull();
+    expect(result.current.user).toBeNull();
+  });
 });
 
 describe('useAuth - redirect URI scheme (CLIENT-1.6)', () => {

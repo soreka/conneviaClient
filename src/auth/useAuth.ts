@@ -30,6 +30,22 @@ type UseAuthResult = Readonly<{
   refreshMe: () => Promise<void>;
 }>;
 
+// AUDIT 2026-06-10 #2/#3/#4/#5/#7/#10/#14/#16: never echo a raw English
+// `error.message`/`response.type` onto the Arabic-first Login screen
+// ("Request failed with status code 500", "Network Error", "timeout of
+// 15000ms exceeded", "(error)"). Every failure path that surfaces an error
+// to the UI MUST run through this mapper. The raw error is __DEV__-logged
+// at the call site for debugging; the UI only ever sees a fixed friendly
+// Arabic string.
+const FRIENDLY_AUTH_ERROR_AR = "تعذّر إتمام تسجيل الدخول. يرجى المحاولة مرة أخرى.";
+function toFriendlyAuthErrorMessage(_err: unknown): string {
+  // Single fixed Arabic string — no interpolation of any raw value. Callers
+  // that need a more specific message (EMAIL_IN_USE provider name,
+  // EMAIL_REQUIRED, ACCOUNT_DELETED, ...) build their own copy and bypass
+  // this helper.
+  return FRIENDLY_AUTH_ERROR_AR;
+}
+
 export function useAuth(): UseAuthResult {
   const [state, setState] = React.useState<AuthState>({
     accessToken: null,
@@ -92,9 +108,17 @@ export function useAuth(): UseAuthResult {
       if (!response) return;
       if (response.type !== "success") {
         if (response.type !== "dismiss") {
+          // AUDIT-#10: do NOT interpolate the raw `response.type`
+          // ("error", "locked", ...) into the Arabic message — that produced
+          // "فشل تسجيل الدخول (error)" (half English shrapnel). The raw type
+          // is __DEV__-logged for debugging; the UI only sees the friendly
+          // Arabic copy.
+          if (__DEV__) {
+            console.warn('[Auth] AuthSession response was not success:', response.type);
+          }
           setState((prev) => ({
             ...prev,
-            error: `فشل تسجيل الدخول (${response.type})`,
+            error: toFriendlyAuthErrorMessage(response),
           }));
         }
         return;
@@ -161,7 +185,12 @@ export function useAuth(): UseAuthResult {
         if (access) {
           try {
             const res = await api.post("/v1/me/bootstrap");
-            const { me } = res.data as { ok: boolean; me: { id: string; email: string; fullName: string; role: string; profileCompleted: boolean } };
+            // AUDIT-#22: the server also returns `subscriptionStatus` on the
+            // bootstrap response (alongside id/email/fullName/role/
+            // profileCompleted). Keep the inline type in sync with the
+            // server contract — useful for downstream callers that read
+            // res.data.me directly.
+            const { me } = res.data as { ok: boolean; me: { id: string; email: string; fullName: string; role: string; profileCompleted: boolean; subscriptionStatus?: 'active' | 'inactive' } };
             // Normalize role from server using centralized normalizeRole
             const user: User = {
               id: me.id,
@@ -184,9 +213,19 @@ export function useAuth(): UseAuthResult {
             const bootstrapCode = (bootstrapError as any)?.response?.data?.code;
             const bootstrapProvider = (bootstrapError as any)?.response?.data?.provider;
 
+            // AUDIT-#21 (nit): this branch is currently DEAD on the bootstrap
+            // path — `bootstrapUser` recreates a stub for any auth0Id it hasn't
+            // seen before, so it never returns ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED
+            // from POST /v1/me/bootstrap (that code is emitted by `requireUserDb`
+            // on subsequent /v1/me reads). Kept for defense-in-depth in case
+            // the server contract changes; do not remove without coordinating
+            // with the server team.
             if (errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
-              console.error("[Auth] Account deleted or not bootstrapped - forcing logout");
+              if (__DEV__) {
+                console.warn("[Auth] Account deleted or not bootstrapped - forcing logout");
+              }
               await setAccessToken(null);
+              await setRefreshToken(null);
               setState({ accessToken: null, user: null, isLoading: false, error: "تم حذف الحساب" });
               return;
             }
@@ -218,18 +257,68 @@ export function useAuth(): UseAuthResult {
               return;
             }
 
-            const meMessage = bootstrapError instanceof Error ? bootstrapError.message : "فشل في جلب بيانات المستخدم";
-            console.error("Failed to bootstrap user:", meMessage);
-            // Still set token but without user
-            setState({ accessToken: access, user: null, isLoading: false, error: meMessage });
+            // AUDIT (defensive — server finding #12): when the server starts
+            // rejecting blank-email tokens with `code:'EMAIL_REQUIRED'`
+            // (instead of fabricating `<sub>@unknown.local` ghost accounts),
+            // surface a friendly Arabic message that mentions "البريد" so the
+            // user knows to re-grant email permission in the social-login
+            // dialog. Clear both tokens — the session is unusable.
+            if (bootstrapCode === 'EMAIL_REQUIRED') {
+              if (__DEV__) {
+                console.warn('[Auth] Bootstrap rejected - email permission missing on token');
+              }
+              await setAccessToken(null);
+              await setRefreshToken(null);
+              setState({
+                accessToken: null,
+                user: null,
+                isLoading: false,
+                error: 'لم نتمكن من قراءة البريد الإلكتروني الخاص بك. يرجى السماح بمشاركة البريد عند تسجيل الدخول.',
+              });
+              return;
+            }
+
+            // AUDIT-#3/#4/#5/#7/#14/#16: any other bootstrap failure
+            // (network, timeout, 5xx, 4xx without a recognized code, generic
+            // Error, ...) MUST NOT echo the raw `e.message` ("Network Error",
+            // "Request failed with status code 500", "timeout of 15000ms
+            // exceeded", "server-down") onto the Arabic Login screen, AND
+            // MUST NOT leave the just-minted access/refresh tokens in
+            // SecureStore — that strands the user half-logged-in and lets
+            // api.ts's 401 interceptor try to renew a rejected session on
+            // next cold start. Clear BOTH tokens + surface friendly Arabic.
+            if (__DEV__) {
+              console.warn('[Auth] Bootstrap failed (generic):', bootstrapError);
+            }
+            await setAccessToken(null);
+            await setRefreshToken(null);
+            setState({
+              accessToken: null,
+              user: null,
+              isLoading: false,
+              error: toFriendlyAuthErrorMessage(bootstrapError),
+            });
           }
         } else {
           setState({ accessToken: access, user: null, isLoading: false, error: null });
         }
       } catch (e: unknown) {
-        const message =
-          e instanceof Error ? e.message : "خطأ غير معروف أثناء تسجيل الدخول";
-        setState({ accessToken: null, user : null , isLoading: false, error: message });
+        // AUDIT-#2: token-exchange / outer-effect failures (axios
+        // "Request failed with status code 400", "Network Error", a thrown
+        // string, ...) MUST NOT have `e.message` echoed onto the Arabic
+        // Login screen. Clear both tokens (defense-in-depth — we may have
+        // partially persisted before throwing) and surface friendly Arabic.
+        if (__DEV__) {
+          console.warn('[Auth] Login effect failed (outer catch):', e);
+        }
+        await setAccessToken(null);
+        await setRefreshToken(null);
+        setState({
+          accessToken: null,
+          user: null,
+          isLoading: false,
+          error: toFriendlyAuthErrorMessage(e),
+        });
       }
     })();
   }, [response, discovery, redirectUri]);
@@ -242,6 +331,11 @@ export function useAuth(): UseAuthResult {
       console.log('[Auth] login() request ready:', !!request);
       console.log('[Auth] login() discovery ready:', !!discovery);
     }
+
+    // AUDIT-#11: clear any prior error BEFORE promptAsync so the Login
+    // screen doesn't flash a stale red banner from a previous failed/
+    // cancelled attempt while the new browser flow is in flight.
+    setState((prev) => ({ ...prev, error: null }));
 
     if (!request) {
       if (__DEV__) {
