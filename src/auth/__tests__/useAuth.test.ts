@@ -375,7 +375,7 @@ describe('useAuth - cross-provider bootstrap collision (S-AUTH-04)', () => {
   // Suggested error string shape (the assertion below only pins the substrings
   // that matter — implementer may phrase the rest):
   //   `هذا البريد مسجّل مسبقاً عبر ${displayName}. يرجى تسجيل الدخول بنفس الطريقة.`
-  test.failing(
+  test(
     'S-AUTH-04: bootstrap 409 EMAIL_IN_USE clears token and sets a provider-named error',
     async () => {
       setAuthRequestState({

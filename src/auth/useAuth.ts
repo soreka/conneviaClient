@@ -176,14 +176,48 @@ export function useAuth(): UseAuthResult {
             // Check for ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED error
             const axiosError = bootstrapError as any;
             const errorCode = axiosError?.response?.data?.error;
-            
+            // S-AUTH-04: server now also returns 409 with `code:'EMAIL_IN_USE'`
+            // + `provider:<slug>` when a COMPLETED account exists for this email
+            // under a different Auth0 provider. Read both fields separately so
+            // we can branch on the machine-readable `code` (not the human
+            // `error` string) and steer the user back to the correct provider.
+            const bootstrapCode = (bootstrapError as any)?.response?.data?.code;
+            const bootstrapProvider = (bootstrapError as any)?.response?.data?.provider;
+
             if (errorCode === 'ACCOUNT_DELETED_OR_NOT_BOOTSTRAPPED') {
               console.error("[Auth] Account deleted or not bootstrapped - forcing logout");
               await setAccessToken(null);
               setState({ accessToken: null, user: null, isLoading: false, error: "تم حذف الحساب" });
               return;
             }
-            
+
+            if (bootstrapCode === 'EMAIL_IN_USE') {
+              // Same email is already registered under another provider. The
+              // session we just minted is unusable, so clear BOTH tokens to
+              // return cleanly to Login (otherwise api.ts's 401 single-flight
+              // interceptor would try to renew a rejected session) and surface
+              // a provider-named message so the user knows which method to
+              // re-use.
+              const providerDisplayName = (() => {
+                switch (bootstrapProvider) {
+                  case 'google':    return 'Google';
+                  case 'apple':     return 'Apple';
+                  case 'facebook':  return 'Facebook';
+                  case 'microsoft': return 'Microsoft';
+                  case 'email':     return 'البريد الإلكتروني';
+                  default:          return 'مزود آخر';
+                }
+              })();
+              const emailInUseMessage = `هذا البريد الإلكتروني مسجّل عبر ${providerDisplayName}. يرجى تسجيل الدخول بنفس الطريقة.`;
+              if (__DEV__) {
+                console.warn('[Auth] Bootstrap rejected - email already in use under provider:', bootstrapProvider);
+              }
+              await setAccessToken(null);
+              await setRefreshToken(null);
+              setState({ accessToken: null, user: null, isLoading: false, error: emailInUseMessage });
+              return;
+            }
+
             const meMessage = bootstrapError instanceof Error ? bootstrapError.message : "فشل في جلب بيانات المستخدم";
             console.error("Failed to bootstrap user:", meMessage);
             // Still set token but without user
