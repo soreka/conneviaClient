@@ -95,14 +95,17 @@ export const RootNavigator = () => {
     skip: !isAuthenticated,
   });
 
-  // AUTH_AUDIT_2026-06-10 #6: branch the admin/customer route on the SERVER
-  // role (`meData.user.role`) rather than the JWT-decoded role from the
-  // Redux slice. The slice value remains the fallback for the pre-meData
-  // window (cold-start, first paint after login) so admins still land on
-  // the right tabs without waiting for the `/v1/me` round-trip — but once
-  // the server response arrives, it wins, so an admin whose Auth0 token is
-  // missing the role claim is no longer mis-routed to CustomerTabs.
-  const effectiveRole = meData?.user?.role ?? role;
+  // AUTH_AUDIT_2026-06-10 #6 — CORRECTED 2026-06-10 (live test): route the
+  // admin/customer decision on the JWT role from the Redux slice, NOT the DB
+  // `meData.user.role`. The DB role is only a snapshot taken at FIRST bootstrap
+  // and is never refreshed, so it can be STALER than Auth0. Observed live: an
+  // account promoted to admin AFTER signup had token role=admin but /v1/me
+  // role=customer, and the original #6 (DB-role) routing wrongly sent the admin
+  // to CustomerTabs. The server's `requireRole` admin-authz already trusts the
+  // JWT role, so the client MUST match it for routing to be consistent with
+  // what the API allows. (The stale DB role is reconciled by syncing it from
+  // the JWT on bootstrap — server follow-up; it only affects display, not authz.)
+  const effectiveRole = role;
 
   // AUTH_AUDIT_2026-06-10 #1: user-invoked retry for the `GET /v1/me`
   // error escape screen. Wired below via the `meCannotBeDetermined` arm.
