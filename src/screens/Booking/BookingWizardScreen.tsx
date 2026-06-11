@@ -483,7 +483,7 @@ export const BookingWizardScreen: React.FC = () => {
   // RENDER STEP 3: Bed Selection
   // ============================================
   const renderStep3 = () => (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 16 }}>
+    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 16, flexGrow: 1 }}>
       {/* Section Header */}
       <View className="flex-row justify-center items-center mb-4">
         <Text className="text-lg font-semibold text-foreground mr-2">
@@ -491,11 +491,13 @@ export const BookingWizardScreen: React.FC = () => {
         </Text>
         <BedIcon size={28} />
       </View>
-      
+
       {detailsLoading ? (
         <ActivityIndicator size="large" color="#A68CD4" className="mt-10" />
       ) : (
-        <>
+        // Center the bed grid in the freed vertical space so it sits balanced
+        // between the header and the pinned التالي button (WIZARD-PAD-01).
+        <View className="flex-1 justify-center">
           {/* Bed Grid */}
           <View className="flex-row flex-wrap justify-center">
             {Array.from({ length: bedData.capacity }, (_, i) => i + 1).map((bedNum) => (
@@ -508,7 +510,7 @@ export const BookingWizardScreen: React.FC = () => {
               />
             ))}
           </View>
-        </>
+        </View>
       )}
     </ScrollView>
   );
@@ -517,7 +519,7 @@ export const BookingWizardScreen: React.FC = () => {
   // RENDER STEP 4: Confirmation
   // ============================================
   const renderStep4 = () => (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 16 }}>
+    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 16, flexGrow: 1 }}>
       {/* Confirmation Header */}
       <View className="flex-row justify-center items-center mb-5">
         <Text className="text-lg font-semibold text-foreground mr-2">
@@ -525,7 +527,7 @@ export const BookingWizardScreen: React.FC = () => {
         </Text>
         <Check size={22} color="#22C55E" />
       </View>
-      
+
       {/* Booking Summary Card */}
       {selectedSession && selectedDayGroup && selectedBedNumber && (
         <BookingSummaryCard
@@ -537,7 +539,11 @@ export const BookingWizardScreen: React.FC = () => {
           bedNumber={selectedBedNumber}
         />
       )}
-      
+
+      {/* Flexible spacer so the cancellation policy settles toward the bottom
+          instead of all content hugging the top (WIZARD-PAD-01). */}
+      <View className="flex-1" />
+
       {/* Cancellation Policy */}
       <CancellationPolicyCard />
     </ScrollView>
