@@ -11,7 +11,7 @@
 // parent screen persists it (current days + the autoGeneration object) and owns
 // the success/error toasts — mirroring how `handleToggleDay`/`handleSaveDay`
 // persist day settings.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { RefreshCw } from 'lucide-react-native';
 import {
@@ -48,6 +48,21 @@ export const AutoGenerationCard: React.FC<AutoGenerationCardProps> = ({
   const [capacity, setCapacity] = useState<number>(
     value?.capacity ?? DEFAULT_CAPACITY
   );
+
+  // AUTOGEN-UI rollback fix: the local fields were seeded from `value` only in
+  // the useState initializers, so a parent rollback (e.g. setAutoGeneration(prev)
+  // after a failed PUT) never reached the card UI — the toggle stayed visually
+  // ON though the save failed. Re-sync local state whenever the relevant `value`
+  // fields change. This is a pure prop→state mirror; it never calls `onChange`,
+  // so user-driven persists still fire exactly once.
+  const nextEnabled = value?.enabled ?? false;
+  const nextDuration = value?.durationMinutes ?? DEFAULT_DURATION;
+  const nextCapacity = value?.capacity ?? DEFAULT_CAPACITY;
+  useEffect(() => {
+    setEnabled(nextEnabled);
+    setDurationMinutes(nextDuration);
+    setCapacity(nextCapacity);
+  }, [nextEnabled, nextDuration, nextCapacity]);
 
   // Build the full settings object from the latest local fields and persist.
   const persist = (next: {
