@@ -41,6 +41,7 @@ import {
   getAvailabilityBadge,
 } from '../../types/scheduleCore';
 import { AdminSessionDetails, BookingDetails } from '../../types/adminSchedule';
+import { arabicServerError } from '../../utils/serverErrors';
 import {
   useGetAdminSessionsQuery,
   useLazyGetAdminSessionDetailsQuery,
@@ -458,7 +459,7 @@ export const AdminScheduleScreen = () => {
         closeAllModals();
       } catch (error) {
         console.error('Failed to create session:', error);
-        // TODO: Show error toast to user
+        Alert.alert('خطأ', arabicServerError(error, 'فشل في إنشاء الحصة'));
       }
     } else {
       // Fallback: Add to local state (mock mode)

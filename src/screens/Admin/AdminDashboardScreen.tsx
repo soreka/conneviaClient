@@ -26,6 +26,7 @@ import {
   Bed,
 } from 'lucide-react-native';
 import { Card } from '../../components/UI';
+import { arabicServerError } from '../../utils/serverErrors';
 import {
   useAdminDashboardSummaryQuery,
   useAdminTodayBookingsQuery,
@@ -344,7 +345,7 @@ export const AdminDashboardScreen: React.FC = () => {
                 await updateAttendance({ id: bookingId, attendance }).unwrap();
                 refetchBookings();
               } catch (err: any) {
-                Alert.alert('خطأ', err?.data?.error || 'فشل في تحديث الحضور');
+                Alert.alert('خطأ', arabicServerError(err, 'فشل في تحديث الحضور'));
               } finally {
                 setUpdatingBookingId(null);
               }
@@ -357,7 +358,7 @@ export const AdminDashboardScreen: React.FC = () => {
           await updateAttendance({ id: bookingId, attendance }).unwrap();
           refetchBookings();
         } catch (err: any) {
-          Alert.alert('خطأ', err?.data?.error || 'فشل في تحديث الحضور');
+          Alert.alert('خطأ', arabicServerError(err, 'فشل في تحديث الحضور'));
         } finally {
           setUpdatingBookingId(null);
         }

@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Ref
 import { CheckCircle, XCircle, Clock, User, Banknote, Building2 } from 'lucide-react-native';
 import { Screen, Card, Button, Badge } from '../../components/UI';
 import { agorotToNis } from '../../utils/formatPrice';
+import { arabicServerError } from '../../utils/serverErrors';
 import {
   useGetAdminPaymentSubmissionsQuery,
   useApprovePaymentSubmissionMutation,
@@ -63,7 +64,7 @@ export const AdminPaymentsScreen = () => {
               setSelectedSubmissionId(null);
               refetch();
             } catch (err: any) {
-              Alert.alert('خطأ', err?.data?.error || 'فشل في الموافقة');
+              Alert.alert('خطأ', arabicServerError(err, 'فشل في الموافقة'));
             }
           },
         },
@@ -88,7 +89,7 @@ export const AdminPaymentsScreen = () => {
               setSelectedSubmissionId(null);
               refetch();
             } catch (err: any) {
-              Alert.alert('خطأ', err?.data?.error || 'فشل في الرفض');
+              Alert.alert('خطأ', arabicServerError(err, 'فشل في الرفض'));
             }
           },
         },

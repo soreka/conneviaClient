@@ -31,6 +31,7 @@ import {
   CancellationPolicyCard,
 } from './components';
 import { BedIcon } from '../../components/icons/BedIcon';
+import { arabicServerError } from '../../utils/serverErrors';
 
 // Temporary: Subscription check (hardcoded for now)
 const hasActiveSubscription = true;
@@ -358,7 +359,7 @@ export const BookingWizardScreen: React.FC = () => {
         ]
       );
     } catch (error: any) {
-      const message = error?.data?.error || 'حدث خطأ أثناء الحجز';
+      const message = arabicServerError(error, 'حدث خطأ أثناء الحجز');
       Alert.alert('خطأ', message);
     }
   };

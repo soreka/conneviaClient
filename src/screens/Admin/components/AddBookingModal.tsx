@@ -15,6 +15,7 @@ import {
 import { X, UserPlus, UserCheck } from 'lucide-react-native';
 import { CustomerSearchInput } from './CustomerSearchInput';
 import { useAdminAddCustomerToSessionMutation } from '../../../features/api/apiSlice';
+import { arabicServerError } from '../../../utils/serverErrors';
 
 interface SelectedCustomer {
   id: string;
@@ -71,7 +72,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
       onCustomerAdded?.();
       resetAndClose();
     } catch (err: any) {
-      Alert.alert('خطأ', err?.data?.error || 'فشل في إضافة العميلة');
+      Alert.alert('خطأ', arabicServerError(err, 'فشل في إضافة العميلة'));
     }
   }, [selectedCustomer, sessionId, addCustomerToSession, onCustomerAdded]);
 

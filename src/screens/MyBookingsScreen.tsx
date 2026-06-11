@@ -13,6 +13,7 @@ import {
   type BookingDetails,
 } from './MyBookings/components';
 import { formatArabicDate } from '../utils/dates';
+import { arabicServerError } from '../utils/serverErrors';
 
 // Arabic day names for consistency
 const ARABIC_DAY_NAMES = [
@@ -253,7 +254,7 @@ export const MyBookingsScreen = () => {
       if (__DEV__) {
         console.log('[Cancel] mutation failed', err);
       }
-      const errorMessage = err?.data?.error || 'فشل إلغاء الحجز';
+      const errorMessage = arabicServerError(err, 'فشل إلغاء الحجز');
       Alert.alert('خطأ', errorMessage);
     }
   };

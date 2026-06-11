@@ -23,6 +23,7 @@ import {
   useCreatePaymentSubmissionMutation,
 } from '../../features/api/apiSlice';
 import { SkeletonPlans, PlanCard, PaymentMethodModal } from './components';
+import { arabicServerError } from '../../utils/serverErrors';
 
 type RequestedAction = 'renew' | 'upgrade_current_month' | 'upgrade_next_month' | 'downgrade_next_month';
 
@@ -189,7 +190,7 @@ export const SubscriptionPlansScreen = () => {
           ]
         );
       } catch (err: any) {
-        Alert.alert('خطأ', err?.data?.error || 'فشل في تقديم الطلب. يرجى المحاولة مرة أخرى.');
+        Alert.alert('خطأ', arabicServerError(err, 'فشل في تقديم الطلب. يرجى المحاولة مرة أخرى.'));
       }
     },
     [selectedPlanId, selectedAction, createPayment, navigation]
