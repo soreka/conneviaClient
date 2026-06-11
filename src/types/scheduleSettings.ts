@@ -12,15 +12,27 @@ export interface DaySettings {
   workPeriods: WorkPeriod[];
 }
 
+// Automatic (nightly cron) session generation settings (AUTOGEN-UI).
+// When `enabled`, the server's midnight cron auto-generates sessions from the
+// enabled days' work periods through `horizonDays` ahead.
+export interface AutoGenerationSettings {
+  enabled: boolean;
+  durationMinutes: number; // 15-180
+  capacity: number; // 1-12 (beds per session)
+  horizonDays: number; // 1-28, default 14
+}
+
 export interface ScheduleSettingsResponse {
   ok: boolean;
   timezone: string;
   weekStart: 'sunday' | 'saturday' | 'monday';
   days: DaySettings[];
+  autoGeneration?: AutoGenerationSettings;
 }
 
 export interface UpdateSettingsRequest {
   days: DaySettings[];
+  autoGeneration?: AutoGenerationSettings;
 }
 
 export interface GenerateSessionsRequest {

@@ -733,6 +733,13 @@ export const apiSlice = createApi({
             endTime: string;
           }>;
         }>;
+        // AUTOGEN-UI: optional nightly auto-generation settings.
+        autoGeneration?: {
+          enabled: boolean;
+          durationMinutes: number;
+          capacity: number;
+          horizonDays: number;
+        };
       },
       void
     >({
@@ -755,6 +762,12 @@ export const apiSlice = createApi({
             endTime: string;
           }>;
         }>;
+        autoGeneration?: {
+          enabled: boolean;
+          durationMinutes: number;
+          capacity: number;
+          horizonDays: number;
+        };
       },
       {
         days: Array<{
@@ -766,6 +779,13 @@ export const apiSlice = createApi({
             endTime: string;
           }>;
         }>;
+        // AUTOGEN-UI: optionally update the nightly auto-generation settings.
+        autoGeneration?: {
+          enabled: boolean;
+          durationMinutes: number;
+          capacity: number;
+          horizonDays: number;
+        };
       }
     >({
       query: (body) => ({

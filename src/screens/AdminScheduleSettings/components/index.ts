@@ -8,4 +8,5 @@ export { AddPeriodModal } from './AddPeriodModal';
 export { DeletePeriodAlert } from './DeletePeriodAlert';
 export { DeleteDayAlert } from './DeleteDayAlert';
 export { AutoGenerateSection } from './AutoGenerateSection';
+export { AutoGenerationCard } from './AutoGenerationCard';
 export { ScheduleSettingsSkeleton } from './ScheduleSettingsSkeleton';

@@ -9,12 +9,14 @@ import {
   useUpdateAdminScheduleSettingsMutation,
   useGenerateAdminSessionsMutation,
 } from '../../features/api/apiSlice';
-import { DaySettings } from '../../types/scheduleSettings';
+import { DaySettings, AutoGenerationSettings } from '../../types/scheduleSettings';
+import { arabicServerError } from '../../utils/serverErrors';
 import {
   AdminScheduleHeader,
   DaySettingsCard,
   DayHoursModal,
   AutoGenerateSection,
+  AutoGenerationCard,
   ScheduleSettingsSkeleton,
 } from './components';
 
@@ -25,6 +27,10 @@ export const AdminScheduleSettingsScreen = () => {
   const [localDays, setLocalDays] = useState<DaySettings[]>([]);
   const [selectedDay, setSelectedDay] = useState<DaySettings | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // AUTOGEN-UI: nightly auto-generation settings (synced from the server).
+  const [autoGeneration, setAutoGeneration] = useState<
+    AutoGenerationSettings | undefined
+  >(undefined);
 
   // Animation refs for day cards
   const dayAnims = useRef<Animated.Value[]>([]);
@@ -52,6 +58,7 @@ export const AdminScheduleSettingsScreen = () => {
   useEffect(() => {
     if (settingsData?.days) {
       setLocalDays(settingsData.days);
+      setAutoGeneration(settingsData.autoGeneration);
 
       // Play staggered entry animation
       Animated.stagger(
@@ -159,6 +166,31 @@ export const AdminScheduleSettingsScreen = () => {
     }
   };
 
+  // AUTOGEN-UI: persist auto-generation settings (current days + the new
+  // autoGeneration object). Mirrors handleSaveDay's pre-update snapshot +
+  // rollback so a failed PUT reverts to the true prior state.
+  const handleSaveAutoGeneration = async (next: AutoGenerationSettings) => {
+    const prev = autoGeneration;
+    setAutoGeneration(next);
+
+    try {
+      await updateSettings({ days: localDays, autoGeneration: next }).unwrap();
+      Toast.show({
+        type: 'success',
+        text1: 'تم حفظ إعدادات التوليد التلقائي',
+        position: 'bottom',
+      });
+    } catch (err) {
+      // Rollback to PRE-update snapshot
+      setAutoGeneration(prev);
+      Toast.show({
+        type: 'error',
+        text1: arabicServerError(err, 'خطأ في حفظ الإعدادات'),
+        position: 'bottom',
+      });
+    }
+  };
+
   // Generate sessions
   const handleGenerate = async (durationMinutes: number, selectedDays: number[], startDate?: string, capacity?: number) => {
     try {
@@ -247,7 +279,14 @@ export const AdminScheduleSettingsScreen = () => {
             ))}
           </View>
 
-          {/* Auto generate section */}
+          {/* Automatic (nightly) session generation settings (AUTOGEN-UI) */}
+          <AutoGenerationCard
+            value={autoGeneration}
+            onChange={handleSaveAutoGeneration}
+            saving={isSaving}
+          />
+
+          {/* Auto generate section (manual, one-off) */}
           <AutoGenerateSection
             days={localDays}
             onGenerate={handleGenerate}
