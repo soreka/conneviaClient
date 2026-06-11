@@ -27,11 +27,20 @@
 //             message — instead of the current bare `<ActivityIndicator />`
 //             that leaves the user stuck on a blank spinner until force-
 //             quit. (RootNavigator.tsx:114-128.)
-//   #6  [MED] The customer-vs-admin routing decision must use the SERVER
-//             role (`meData?.user?.role`) as the EFFECTIVE role, not solely
-//             the JWT-decoded role from the Redux slice. An admin whose
-//             access token lacks the role claim today gets routed to
-//             CustomerTabs. (RootNavigator.tsx:37, 123.)
+//   #6  [MED→REVERSED] The customer-vs-admin routing decision must route on
+//             the JWT role (the Redux `selectRole` value, derived from the
+//             Auth0 access token) — NOT the DB `meData.user.role`. The
+//             original audit-#6 fix (route on the server DB role) was
+//             REVERSED after live testing: the DB role is only a snapshot
+//             taken at FIRST bootstrap and is never refreshed, so an account
+//             promoted to admin AFTER signup has token role=admin but
+//             /v1/me role=customer — and DB-role routing wrongly sent that
+//             real admin to CustomerTabs. The server's `requireRole`
+//             admin-authz trusts the JWT, so the client MUST match it.
+//             Corrected production fix landed as commit bdacd14:
+//             `const effectiveRole = role;` (RootNavigator.tsx:108). This
+//             guard is a PLAIN test (not .failing) — it pins the corrected
+//             JWT-role routing against current source.
 //   #17 [LOW] The invalid-token restart branch ("Failed to decode stored
 //             token") must `dispatch(logout())` (full teardown — both
 //             SecureStore slots cleared via the slice reducer, RTK cache
@@ -149,65 +158,87 @@ describe('RootNavigator — AUTH_AUDIT_2026-06-10 guards (#1, #6, #17)', () => {
   );
 
   // ===================================================================
-  // FINDING #6 (MED) — effective role must come from the SERVER (me.role)
+  // FINDING #6 (REVERSED) — effective role must come from the JWT, NOT the DB
   // ===================================================================
   //
-  // Today RootNavigator branches on `role` from the Redux slice (line 37),
-  // which `decodeAccessToken` derived from the JWT (line 56-73 in the
-  // bootstrap, plus `useAuth.login` paths). The audit found that if the
-  // Auth0 token lacks the role claim — possible while the role-claim
-  // rule is mis-configured or for first-login transient states — an
-  // admin gets routed to CustomerTabs.
+  // CORRECTED 2026-06-11 — this guard previously pinned the original
+  // audit-#6 fix (route on the server DB role `meData.user.role`). Live
+  // testing REVERSED that decision: the DB role is only a snapshot taken at
+  // FIRST bootstrap and is never refreshed afterwards, so an account
+  // promoted to admin AFTER signup carries token role=admin but reports
+  // /v1/me role=customer — and DB-role routing wrongly sent that real admin
+  // to CustomerTabs. The server's `requireRole('admin')` admin-authz trusts
+  // the JWT role, so the client MUST route on the same JWT role for the UI
+  // it shows to match the API it can call. The production fix (commit
+  // bdacd14, RootNavigator.tsx:108) is `const effectiveRole = role;` where
+  // `role` is the Redux `selectRole` value derived from the access token.
   //
-  // Pin: the customer-vs-admin branch must read from `meData.user.role`
-  // (or an equivalent server-derived local — `effectiveRole`,
-  // `serverRole`, `meRole`) in the ternary that picks AdminTabs vs
-  // CustomerTabs. The JWT-decoded `role` may remain as a fallback
-  // (`meData?.user?.role ?? role`), but it must NOT be the SOLE input.
+  // This is a PLAIN test (not .failing): it pins the CORRECTED behavior and
+  // must PASS against current source. The previous version of this guard
+  // passed by COINCIDENCE — it matched `effectiveRole === 'admin'` in the
+  // render ladder, which holds regardless of how `effectiveRole` is
+  // derived, and so it would have stayed green even under the (now-reverted)
+  // DB-role derivation. This rewrite closes that gap by asserting BOTH:
+  //   (a) `effectiveRole` is defined FROM the Redux `role` (selectRole),
+  //       NOT from `meData.user.role`; and
+  //   (b) the routing decision does NOT fall back to the DB role
+  //       (`meData?.user?.role ?? role` / `|| role` / a `serverRole`/`meRole`
+  //       local derived from `meData.user.role`).
   test(
-    'AUTH_AUDIT_2026-06-10 #6: customer-vs-admin route uses meData.user.role as the effective role (not solely the JWT-decoded role)',
+    'AUTH_AUDIT_2026-06-10 #6 (REVERSED): customer-vs-admin route uses the JWT role from the Redux slice as effectiveRole — NOT meData.user.role (DB role is a stale first-bootstrap snapshot; server requireRole trusts the JWT)',
     () => {
       const src = readSource();
 
-      // Carve out the render ladder region (after the "Route based on
-      // auth state and role" marker) — the audit calls out the admin
-      // branch specifically at RootNavigator.tsx:123, which lives here.
+      // (a) `effectiveRole` MUST be defined from the Redux `role` (the
+      //     JWT-derived value from `selectRole`), not from the DB.
+      //     The production form is exactly `const effectiveRole = role;`.
+      //     Accept that plus an explicit-comment-free equivalent, but the
+      //     right-hand side must be the bare `role` identifier — NOT a
+      //     `meData...` expression.
+      const effectiveRoleDecl = src.match(
+        /const\s+effectiveRole\s*=\s*([^;]+);/
+      );
+      expect(effectiveRoleDecl).not.toBeNull();
+      const effectiveRoleRhs = (effectiveRoleDecl as RegExpMatchArray)[1].trim();
+      // RHS must be the JWT `role` selector value (bare `role`), with no
+      // DB-role plumbing baked in.
+      expect(effectiveRoleRhs).toBe('role');
+
+      // (b) The routing decision must NOT consult the DB role anywhere it
+      //     could change the admin-vs-customer outcome. Specifically the
+      //     reverted DB-role-fallback shapes must be ABSENT from the whole
+      //     file:
+      //       meData?.user?.role ?? role
+      //       meData.user.role || role
+      //       meData?.user?.role === 'admin'
+      //       const serverRole = meData?.user?.role ...
+      //       const meRole     = meData?.user?.role ...
+      //     `selectRole` (the Redux slice) is the only role source.
+      const dbRoleFallback =
+        /meData\??\.user\??\.role\s*(\?\?|\|\|)\s*role/.test(src) ||
+        /\brole\s*(\?\?|\|\|)\s*meData\??\.user\??\.role/.test(src);
+      expect(dbRoleFallback).toBe(false);
+
+      const dbRoleInAdminBranch =
+        /meData\??\.user\??\.role\s*===\s*['"]admin['"]/.test(src);
+      expect(dbRoleInAdminBranch).toBe(false);
+
+      const dbDerivedRoleLocal =
+        /const\s+(serverRole|meRole|effectiveRole)\s*=\s*meData\??\.user\??\.role/.test(
+          src
+        );
+      expect(dbDerivedRoleLocal).toBe(false);
+
+      // (c) The render ladder must actually branch on `effectiveRole` (the
+      //     JWT-role local) when picking AdminTabs — so the JWT role is the
+      //     operative routing input, not a dead local.
       const routeMarker = '// Route based on auth state and role';
       const markerIdx = src.indexOf(routeMarker);
       expect(markerIdx).toBeGreaterThan(-1);
       const renderLadder = src.slice(markerIdx);
-
-      // The admin/customer-tabs branches in the ladder. Today this is:
-      //   role === 'admin' ? (...AdminTabs...) : ...
-      // We accept any of:
-      //   meData?.user?.role === 'admin'
-      //   meData.user.role === 'admin'
-      //   effectiveRole === 'admin'   (with an upstream `const effectiveRole = meData?.user?.role ?? role`)
-      //   serverRole === 'admin'
-      //   meRole === 'admin'
-      // The check fails if the ONLY admin-branch input is the bare slice
-      // `role` (i.e. the current buggy state).
-      const usesServerRoleDirectly =
-        /meData\??\.user\??\.role\s*===\s*['"]admin['"]/.test(renderLadder) ||
-        /\beffectiveRole\s*===\s*['"]admin['"]/.test(renderLadder) ||
-        /\bserverRole\s*===\s*['"]admin['"]/.test(renderLadder) ||
-        /\bmeRole\s*===\s*['"]admin['"]/.test(renderLadder);
-
-      // OR — the implementer may compute an `effectiveRole` local
-      // upstream of the ladder and use THAT in the ternary. Detect the
-      // shape `const effectiveRole = meData?.user?.role ?? role` (or the
-      // strict-equality form) AND that the ladder uses it.
-      const computesEffectiveRoleUpstream =
-        /const\s+(effectiveRole|serverRole|meRole)\s*=\s*meData\??\.user\??\.role\s*(\?\?|\|\|)\s*role/.test(
-          src
-        ) &&
-        /(effectiveRole|serverRole|meRole)\s*===\s*['"]admin['"]/.test(
-          renderLadder
-        );
-
-      expect(usesServerRoleDirectly || computesEffectiveRoleUpstream).toBe(
-        true
-      );
+      expect(
+        /\beffectiveRole\s*===\s*['"]admin['"]/.test(renderLadder)
+      ).toBe(true);
     }
   );
 
