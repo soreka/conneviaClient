@@ -16,7 +16,6 @@ import {
   Edit,
   Phone,
   MessageCircle,
-  Bell,
   Globe,
   Lock,
   Heart,
@@ -29,7 +28,7 @@ import {
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
 import { resetToLogin } from '../navigation/navigationRef';
-import { Card, Button, Badge, Switch } from '../components/UI';
+import { Card, Button, Badge } from '../components/UI';
 import {
   useGetMeQuery,
   usePatchMeMutation,
@@ -81,9 +80,6 @@ export const ProfileScreen = () => {
 
   const subscription = subscriptionData?.current;
   const usage = usageData?.usage;
-
-  // Local state for notifications toggle
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Edit mode states
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -682,18 +678,6 @@ export const ProfileScreen = () => {
           <Card className="bg-white border border-[#E8E3ED] rounded-2xl shadow-sm mt-4">
             <View className="p-4">
               <Text className="text-lg font-bold text-[#666666] text-right mb-4">إعدادات الحساب</Text>
-
-              {/* Notifications */}
-              <View className="flex-row-reverse items-center justify-between py-3 border-b border-[#E8E3ED]">
-                <View className="flex-row-reverse items-center">
-                  <Bell size={18} color="#8C8C8C" />
-                  <Text className="text-sm text-[#666666] mr-3">الإشعارات</Text>
-                </View>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
-                />
-              </View>
 
               {/* Language */}
               <View className="flex-row-reverse items-center justify-between py-3 border-b border-[#E8E3ED]">
