@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, RefreshControl, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useGetSessionsQuery } from '../../features/api/apiSlice';
 import { Screen } from '../../components/UI';
 import { ScheduleHeader } from './ScheduleHeader';
@@ -44,7 +45,22 @@ export const ScheduleScreen = () => {
   const navigation = useNavigation<NavigationProp>();
 
   const today = useMemo(() => new Date(), []);
-  const startOfWeek = useMemo(() => getStartOfWeek(today, 0), [today]);
+
+  // Bounded week navigation: 0 = current week, 1 = next week. Matches the
+  // booking wizard's 14-day generation horizon (SCHED-NAV-01). No past weeks,
+  // no week +2.
+  const MAX_WEEK_OFFSET = 1;
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Anchor on the current week's start, then shift +7 days per offset. This
+  // mirrors `getStartOfWeek(today, 0)` + `setDate(+7)` so the query window is
+  // byte-for-byte the explicit current/next-week range.
+  const baseStartOfWeek = useMemo(() => getStartOfWeek(today, 0), [today]);
+  const startOfWeek = useMemo(() => {
+    const d = new Date(baseStartOfWeek);
+    d.setDate(baseStartOfWeek.getDate() + 7 * weekOffset);
+    return d;
+  }, [baseStartOfWeek, weekOffset]);
   const endOfWeek = useMemo(() => getEndOfWeek(startOfWeek), [startOfWeek]);
   const weekDays = useMemo(() => getWeekDays(startOfWeek), [startOfWeek]);
 
@@ -54,6 +70,15 @@ export const ScheduleScreen = () => {
   }, [weekDays, today]);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(todayIndex);
+
+  // Switching weeks resets the selected day: today's index on the current
+  // week, the first day on next week (today isn't in next week's range).
+  const goToWeek = (offset: number) => {
+    const clamped = Math.max(0, Math.min(MAX_WEEK_OFFSET, offset));
+    if (clamped === weekOffset) return;
+    setWeekOffset(clamped);
+    setSelectedDayIndex(clamped === 0 ? todayIndex : 0);
+  };
 
   const { data, isLoading, error, refetch, isFetching } = useGetSessionsQuery({
     from: startOfWeek.toISOString(),
@@ -123,6 +148,50 @@ export const ScheduleScreen = () => {
 
   const renderListHeader = () => <DayInfoCard selectedDate={selectedDate} />;
 
+  // Bounded week navigation controls. RTL: "next" points left, "back" right.
+  // The back-to-current control only exists once on next week; the next-week
+  // control only exists on the current week — keeping the offset clamped 0..1.
+  const renderWeekNav = () => (
+    <View
+      className="bg-white px-4 pt-3"
+      style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}
+    >
+      <View style={{ width: 44, alignItems: 'flex-start' }}>
+        {weekOffset > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="الأسبوع الحالي"
+            onPress={() => goToWeek(weekOffset - 1)}
+            hitSlop={8}
+            className="w-11 h-11 items-center justify-center rounded-full"
+            style={{ backgroundColor: '#f3f4f6' }}
+          >
+            <ChevronRight size={22} color="#8b5cf6" />
+          </Pressable>
+        )}
+      </View>
+
+      <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>
+        {weekOffset === 0 ? 'هذا الأسبوع' : 'الأسبوع القادم'}
+      </Text>
+
+      <View style={{ width: 44, alignItems: 'flex-end' }}>
+        {weekOffset < MAX_WEEK_OFFSET && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="الأسبوع القادم"
+            onPress={() => goToWeek(weekOffset + 1)}
+            hitSlop={8}
+            className="w-11 h-11 items-center justify-center rounded-full"
+            style={{ backgroundColor: '#f3f4f6' }}
+          >
+            <ChevronLeft size={22} color="#8b5cf6" />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+
   if (isLoading) {
     return (
       <View className="flex-1 bg-background">
@@ -150,7 +219,9 @@ export const ScheduleScreen = () => {
   return (
     <View className="flex-1 bg-background">
       <ScheduleHeader onBackPress={handleBackPress} />
-      
+
+      {renderWeekNav()}
+
       <WeekDayTabs
         days={daysWithSessions}
         selectedIndex={selectedDayIndex}
