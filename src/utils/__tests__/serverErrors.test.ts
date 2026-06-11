@@ -105,7 +105,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // ===================================================================
   // SANITY — the module + export must exist with the right signature.
   // ===================================================================
-  test.failing(
+  test(
     'ARABIC-ERR-01: module src/utils/serverErrors.ts exports arabicServerError(err, fallback)',
     () => {
       const fn = loadHelper();
@@ -119,7 +119,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // TIER 1 — payload code/reason match → Arabic (both error shapes)
   // ===================================================================
   describe.each(KNOWN_CODES)('tier 1 — known code %s', (code) => {
-    test.failing(
+    test(
       `ARABIC-ERR-01: code "${code}" (RTK shape err.data.code) resolves to Arabic, not the raw code/English`,
       () => {
         const fn = loadHelper();
@@ -131,7 +131,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
       }
     );
 
-    test.failing(
+    test(
       `ARABIC-ERR-01: code "${code}" (axios shape err.response.data.code) resolves to Arabic, not the raw code/English`,
       () => {
         const fn = loadHelper();
@@ -146,7 +146,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     );
   });
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: payload `reason` field is honored the same as `code` (RTK shape)',
     () => {
       const fn = loadHelper();
@@ -157,7 +157,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: a known code wins over a known English string in the same payload (code tier takes precedence)',
     () => {
       const fn = loadHelper();
@@ -176,7 +176,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // wording, but these few are pinned so the resolver demonstrably maps the
   // specific concept (and the corresponding entries are documented in
   // REVIEW_FINDINGS.md so an implementer wording change updates both).
-  test.failing(
+  test(
     'ARABIC-ERR-01: NO_SUBSCRIPTION → "لا يوجد اشتراك نشط"',
     () => {
       const fn = loadHelper();
@@ -186,7 +186,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: WEEKLY_CAP_REACHED → "لقد وصلت إلى الحد الأسبوعي للحجوزات"',
     () => {
       const fn = loadHelper();
@@ -196,7 +196,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: NO_CREDITS → "لا يوجد رصيد كافٍ في اشتراكك"',
     () => {
       const fn = loadHelper();
@@ -212,7 +212,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   describe.each(KNOWN_STATIC_STRINGS)(
     'tier 2 — known English string "%s"',
     (msg) => {
-      test.failing(
+      test(
         `ARABIC-ERR-01: "${msg}" (RTK shape err.data.error) maps to Arabic, not the raw English`,
         () => {
           const fn = loadHelper();
@@ -223,7 +223,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
         }
       );
 
-      test.failing(
+      test(
         `ARABIC-ERR-01: "${msg}" (axios shape err.response.data.error) maps to Arabic, not the raw English`,
         () => {
           const fn = loadHelper();
@@ -236,7 +236,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: a known English string under the `message` key (not just `error`) is mapped',
     () => {
       const fn = loadHelper();
@@ -249,7 +249,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   );
 
   // ---- Dynamic bed-number strings (regex match) ----
-  test.failing(
+  test(
     'ARABIC-ERR-01: dynamic "Bed 3 is already booked" maps to Arabic, not the raw English',
     () => {
       const fn = loadHelper();
@@ -260,7 +260,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: dynamic "Bed 12 is already booked" (multi-digit) also maps to Arabic',
     () => {
       const fn = loadHelper();
@@ -271,7 +271,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: dynamic "Bed number must be between 1 and 6" maps to Arabic, not the raw English',
     () => {
       const fn = loadHelper();
@@ -285,7 +285,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: dynamic "Bed number must be between 1 and 10" (multi-digit) also maps to Arabic',
     () => {
       const fn = loadHelper();
@@ -302,7 +302,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // ===================================================================
   // TIER 3 — server message already contains Arabic → passthrough
   // ===================================================================
-  test.failing(
+  test(
     'ARABIC-ERR-01: an Arabic server message is passed through verbatim (RTK shape)',
     () => {
       const fn = loadHelper();
@@ -312,7 +312,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: an Arabic server message is passed through verbatim (axios shape)',
     () => {
       const fn = loadHelper();
@@ -322,7 +322,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: Arabic passthrough applies to the `message` key too',
     () => {
       const fn = loadHelper();
@@ -335,7 +335,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // ===================================================================
   // TIER 4 — fallback (unknown English / missing / network error)
   // ===================================================================
-  test.failing(
+  test(
     'ARABIC-ERR-01: an UNKNOWN English server string falls back to the Arabic fallback (does NOT leak English)',
     () => {
       const fn = loadHelper();
@@ -347,7 +347,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: undefined error → fallback',
     () => {
       const fn = loadHelper();
@@ -355,7 +355,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: null error → fallback',
     () => {
       const fn = loadHelper();
@@ -363,7 +363,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: empty object error → fallback',
     () => {
       const fn = loadHelper();
@@ -371,7 +371,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: RTK Query FETCH_ERROR (network, no data payload) → fallback',
     () => {
       const fn = loadHelper();
@@ -384,7 +384,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: RTK Query TIMEOUT_ERROR → fallback',
     () => {
       const fn = loadHelper();
@@ -393,7 +393,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: a thrown Error instance with an unknown English message → fallback (does NOT leak the JS message)',
     () => {
       const fn = loadHelper();
@@ -403,7 +403,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
-  test.failing(
+  test(
     'ARABIC-ERR-01: a bare string error that is unknown English → fallback',
     () => {
       const fn = loadHelper();
@@ -414,7 +414,7 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
   // ===================================================================
   // GUARANTEE — the result is ALWAYS Arabic (never leaks English)
   // ===================================================================
-  test.failing(
+  test(
     'ARABIC-ERR-01: across all tiers, the returned string is ALWAYS Arabic and never the raw English server string',
     () => {
       const fn = loadHelper();

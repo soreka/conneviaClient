@@ -138,7 +138,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
     }
   );
 
-  test.failing(
+  test(
     'SCHED-NAV-01: the "next week" control is present on initial (current-week) render',
     () => {
       renderSchedule();
@@ -159,7 +159,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
   // ===================================================================
   // ADVANCE TO NEXT WEEK — query window + day tabs shift +7 days
   // ===================================================================
-  test.failing(
+  test(
     'SCHED-NAV-01: pressing "next week" shifts the query window +7 days',
     () => {
       renderSchedule();
@@ -182,7 +182,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
     }
   );
 
-  test.failing(
+  test(
     'SCHED-NAV-01: pressing "next week" matches the explicit next-week window (getStartOfWeek+7 .. getEndOfWeek)',
     () => {
       renderSchedule();
@@ -202,7 +202,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
     }
   );
 
-  test.failing(
+  test(
     'SCHED-NAV-01: pressing "next week" shifts the day-tab dates +7 days (the day-name labels rotate by a week)',
     () => {
       renderSchedule();
@@ -236,7 +236,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
   // ===================================================================
   // RETURN TO CURRENT WEEK
   // ===================================================================
-  test.failing(
+  test(
     'SCHED-NAV-01: pressing "back to current week" restores the current-week query window (and the back control is absent until on next week)',
     () => {
       renderSchedule();
@@ -263,7 +263,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
   // ===================================================================
   // BOUNDEDNESS — offset clamped to [0, 1]
   // ===================================================================
-  test.failing(
+  test(
     'SCHED-NAV-01: navigation is bounded — there is no "next week" control once on next week (cannot advance to week +2)',
     () => {
       renderSchedule();
@@ -275,7 +275,7 @@ describe('SCHED-NAV-01 — Schedule week navigation', () => {
     }
   );
 
-  test.failing(
+  test(
     'SCHED-NAV-01: navigation is bounded — the query window never advances beyond next week even with repeated presses',
     () => {
       renderSchedule();

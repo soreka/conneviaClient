@@ -66,7 +66,7 @@ describe('WIZARD-PAD-01 — Step-3 bed-grid layout balance', () => {
     expect(/contentContainerStyle\s*=/.test(body)).toBe(true);
   });
 
-  test.failing(
+  test(
     "WIZARD-PAD-01: Step-3 ScrollView contentContainerStyle includes flexGrow: 1 (so the bed grid fills the height instead of hugging the top)",
     () => {
       const body = renderStep3Body(readSource());

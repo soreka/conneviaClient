@@ -226,7 +226,7 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 
 These four findings were filed by the orchestrator session of 2026-06-11 off the §3 SESSION HANDOFF open items (#1 Arabic pop-ups, #2 future-weeks booking, #3 booking padding). Tests written FIRST by `fitnessapp-client-side-tester`; the implementer builds the production code next.
 
-### 7.1 ARABIC-ERR-01 — raw English server error strings leak into Arabic toasts/alerts [DONE 2026-06-11 — pending .failing drop]
+### 7.1 ARABIC-ERR-01 — raw English server error strings leak into Arabic toasts/alerts [DONE 2026-06-11]
 - **Where:** the error-surfacing call sites listed in ARABIC-ERR-02 prefer `err?.data?.error || '<Arabic fallback>'`. The `||` short-circuits to the English server `error` whenever the server sends a non-empty string, so the Arabic fallback never fires and English (e.g. "Session is full", "Request failed with status code 409") shows to the user.
 - **Why it matters:** the product UI is fully Arabic; raw English server text is a visible polish/quality regression and reads as broken to an Arabic-first audience.
 - **Fix:** create `src/utils/serverErrors.ts` exporting `arabicServerError(err: unknown, fallback: string): string`. Resolution order:
@@ -237,12 +237,12 @@ These four findings were filed by the orchestrator session of 2026-06-11 off the
 - **Test file:** `src/utils/__tests__/serverErrors.test.ts` (`test.failing('ARABIC-ERR-01: ...')`, 84 failing + 1 sanity-shape; covers each tier, both shapes, dynamic bed strings, Arabic passthrough, fallback for undefined/null/`{}`/FETCH_ERROR/TIMEOUT_ERROR/Error/bare-string).
 - **Exact-match contracts pinned (implementer may change wording, but must update BOTH this note AND the test):** `NO_SUBSCRIPTION` → `لا يوجد اشتراك نشط`; `WEEKLY_CAP_REACHED` → `لقد وصلت إلى الحد الأسبوعي للحجوزات`; `NO_CREDITS` → `لا يوجد رصيد كافٍ في اشتراكك`. All other codes/strings are asserted as "contains Arabic, not the raw code/English, not the generic fallback" only — wording free.
 
-### 7.2 ARABIC-ERR-02 — surfacing sites must adopt `arabicServerError` [DONE 2026-06-11 — pending .failing drop]
+### 7.2 ARABIC-ERR-02 — surfacing sites must adopt `arabicServerError` [DONE 2026-06-11]
 - **Where:** `src/screens/Booking/BookingWizardScreen.tsx:361`, `src/screens/MyBookingsScreen.tsx:256`, `src/screens/SubscriptionPlans/SubscriptionPlansScreen.tsx:192`, `src/screens/Admin/AdminDashboardScreen.tsx:347,360`, `src/screens/Admin/AdminPaymentsScreen.tsx:66,91`, `src/screens/Admin/components/AddBookingModal.tsx:74`.
 - **Fix:** each file must (a) import `arabicServerError` from `../utils/serverErrors` (relative depth varies) and (b) replace `err?.data?.error || '<fallback>'` / `error?.data?.error || '<fallback>'` with `arabicServerError(err, '<fallback>')` — keeping the existing Arabic fallback string as the 2nd arg. The raw `err?.data?.error ||` / `error?.data?.error ||` interpolation must be GONE from each file.
 - **Test file:** `src/screens/__tests__/arabicServerErrorAdoption.test.ts` (`test.failing('ARABIC-ERR-02: ...')`, 18 failing + 1 sanity; per-site: imports helper, no raw `?.data?.error ||`, calls `arabicServerError(`). Source-shape guards (read file content) — the behavioral mapping guarantee lives in ARABIC-ERR-01's unit tests.
 
-### 7.3 SCHED-NAV-01 — Schedule tab can't see/book next week [DONE 2026-06-11 — pending .failing drop]
+### 7.3 SCHED-NAV-01 — Schedule tab can't see/book next week [DONE 2026-06-11]
 - **Where:** `src/screens/Schedule/index.tsx:46-61` hardcodes the CURRENT week (`getStartOfWeek(today,0)` → `getEndOfWeek`, `useGetSessionsQuery({from,to})`).
 - **Why it matters:** customers can't see/book next week from the Schedule tab even though the booking wizard already covers a 14-day horizon (`BookingWizardScreen.tsx:149-153` generates +14 days).
 - **Fix:** add BOUNDED week navigation (offset 0..1 — current + next week, matching the 14-day generation horizon). A "next week" control on the current week; a "back to current week" control once on next week. Switching recomputes BOTH the `useGetSessionsQuery` window (from/to shift ±7 days) AND the WeekDayTabs dates. Clamp offset to `[0, 1]` (no week +2, no past weeks).
@@ -250,7 +250,7 @@ These four findings were filed by the orchestrator session of 2026-06-11 off the
 - **Test file:** `src/screens/Schedule/__tests__/ScheduleScreen.weekNav.test.tsx` (1 PLAIN regression guard — initial render = current week, passes now; 7 `test.failing('SCHED-NAV-01: ...')` — next-week present, press shifts window +7d & matches explicit next-week range, day-tabs shift +7d, back-to-current restores window + back-control absent on current week, bounded: no next-week control once on next week, window never advances beyond +7).
 - **Note (orchestrator):** §3 #2 flags this is BLOCKED on Ahmed for the DATA side — `dailyMidnightJob` does not auto-generate future sessions, so next-week cards may be empty until a generation feature exists. SCHED-NAV-01 is the FRONT-END window only; it lets the tab REQUEST next week. Empty-next-week is a separate server/data gap.
 
-### 7.4 WIZARD-PAD-01 — Step-3/4 layout void above the pinned button [DONE 2026-06-11 — pending .failing drop]
+### 7.4 WIZARD-PAD-01 — Step-3/4 layout void above the pinned button [DONE 2026-06-11]
 - **Where:** `src/screens/Booking/BookingWizardScreen.tsx` `renderStep3` (~484-513): ScrollView `className="flex-1 bg-white"`, `contentContainerStyle={{ padding: 16 }}` — content doesn't stretch, so the bed grid hugs the top with a large void above the pinned التالي button. Step-4 (`renderStep4`, ~518-543) has the same shape if needed.
 - **Fix:** add `flexGrow: 1` to the Step-3 (and Step-4 if needed) `contentContainerStyle`, and vertically balance the grid (e.g. a `flex-1 justify-center` wrapper around the bed grid).
 - **Test file:** `src/screens/Booking/__tests__/BookingWizardScreen.step3Padding.test.ts` (1 `test.failing('WIZARD-PAD-01: ...')` — Step-3 ScrollView contentContainerStyle includes `flexGrow: 1`; + 1 sanity). Minimal source-guard — flexGrow only; classNames/grid-wrapper structure left to the implementer. (Style-only contracts have no observable effect under the RN test renderer, hence source-regex.)

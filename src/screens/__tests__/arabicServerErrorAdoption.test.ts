@@ -88,7 +88,7 @@ describe('ARABIC-ERR-02 — surfacing sites adopt arabicServerError', () => {
   });
 
   describe.each(SITES)('$label', (site) => {
-    test.failing(
+    test(
       `ARABIC-ERR-02: ${site.label} imports arabicServerError from the serverErrors util`,
       () => {
         const src = readSite(site.relPath);
@@ -102,7 +102,7 @@ describe('ARABIC-ERR-02 — surfacing sites adopt arabicServerError', () => {
       }
     );
 
-    test.failing(
+    test(
       `ARABIC-ERR-02: ${site.label} no longer interpolates err?.data?.error || / error?.data?.error || directly`,
       () => {
         const src = readSite(site.relPath);
@@ -110,7 +110,7 @@ describe('ARABIC-ERR-02 — surfacing sites adopt arabicServerError', () => {
       }
     );
 
-    test.failing(
+    test(
       `ARABIC-ERR-02: ${site.label} actually CALLS arabicServerError(...) at least once`,
       () => {
         const src = readSite(site.relPath);
