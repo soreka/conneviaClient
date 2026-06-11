@@ -64,14 +64,23 @@ jest.mock('react-native-reanimated', () =>
 // per-test (success vs. rejection) via `mockUpdateTrigger`.
 const mockUpdateTrigger = jest.fn();
 const mockUseGetAdminScheduleSettingsQuery = jest.fn();
-const mockUseUpdateAdminScheduleSettingsMutation = jest.fn(() => [
-  mockUpdateTrigger,
-  { isLoading: false },
-]);
-const mockUseGenerateAdminSessionsMutation = jest.fn(() => [
-  jest.fn(() => ({ unwrap: () => Promise.resolve({ created: 0, skipped: 0 }) })),
-  { isLoading: false },
-]);
+// Rest-typed so the `(...a)` wrappers in the jest.mock factory below pass
+// strict tsc (TS2556 — a spread arg must have a tuple type or be passed to a
+// rest parameter). Matches the precedent set in `api.test.ts` after P2 #26.
+const mockUseUpdateAdminScheduleSettingsMutation = jest.fn(
+  (...args: any[]): [jest.Mock, { isLoading: boolean }] => [
+    mockUpdateTrigger,
+    { isLoading: false },
+  ]
+);
+const mockUseGenerateAdminSessionsMutation = jest.fn(
+  (...args: any[]): [jest.Mock, { isLoading: boolean }] => [
+    jest.fn(() => ({
+      unwrap: () => Promise.resolve({ created: 0, skipped: 0 }),
+    })),
+    { isLoading: false },
+  ]
+);
 jest.mock('../../../features/api/apiSlice', () => ({
   useGetAdminScheduleSettingsQuery: (...a: any[]) =>
     mockUseGetAdminScheduleSettingsQuery(...a),

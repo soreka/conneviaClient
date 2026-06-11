@@ -147,14 +147,15 @@ Jest's `test.failing()` is a built-in: passes iff the body throws. CI flags it i
 
 ---
 
-## 3. DEAD CODE — delete
+## 3. DEAD CODE — delete  [P2 #25 — 6 modules DELETED 2026-06-11, commit ea345ae]
 
-- **`src/config.ts`** — duplicate of `src/config/env.ts`. Zero importers.
-- **`src/rainy.tsx`** — scratch file rendering "not rainy yet".
-- **`testScreen.tsx`** (project root, not `src/`) — `expo-auth-session` debug screen, not imported.
-- **`src/screens/ScheduleScreen.tsx`** — 238 LOC, superseded by `src/screens/Schedule/index.tsx`.
-- **`src/features/auth/LoginScreen.tsx`** — 153 LOC stub with `setTimeout`-fake login. Real login is `src/screens/Login/index.tsx`.
-- **`src/hooks/use-toast.ts`** — imports from `@/components/ui/toast` (a shadcn web component) and is likely unused / will fail on RN. The `TOAST_REMOVE_DELAY = 1000000` is a copy-paste tell. If kept, fix the delay to 5000ms.
+- **`src/config.ts`** [DONE 2026-06-11 — deleted] — duplicate of `src/config/env.ts`. Zero importers.
+- **`src/rainy.tsx`** [DONE 2026-06-11 — deleted] — scratch file rendering "not rainy yet".
+- **`testScreen.tsx`** (project root, not `src/`) — `expo-auth-session` debug screen, not imported. (Not in scope of the 2026-06-11 `src/` sweep; lives at repo root.)
+- **`src/screens/ScheduleScreen.tsx`** [DONE 2026-06-11 — deleted] — 238 LOC, superseded by `src/screens/Schedule/index.tsx`.
+- **`src/features/auth/LoginScreen.tsx`** [DONE 2026-06-11 — deleted] — 153 LOC stub with `setTimeout`-fake login. Real login is `src/screens/Login/index.tsx`.
+- **`src/hooks/use-toast.ts`** [DONE 2026-06-11 — deleted] — imports from `@/components/ui/toast` (a shadcn web component) and is likely unused / will fail on RN. The `TOAST_REMOVE_DELAY = 1000000` is a copy-paste tell.
+- **`src/screens/ui/AtomsDemoScreen.tsx`** [DONE 2026-06-11 — deleted] — UI atoms demo screen, zero importers.
 - **Root-level `tailwind.config.js`** — NativeWind reads `connevia/tailwind.config.js` via `connevia/metro.config.js`. Delete the root copy.
 - **`@types/react-native@^0.72.8` in `devDependencies`** — deprecated since RN 0.71; types ship with `react-native` itself.
 

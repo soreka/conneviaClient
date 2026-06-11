@@ -10,9 +10,10 @@
 //
 // Decision (per .claude/PRESHIP_AUDIT_2026-06-03.md C-STORE-06): REMOVE the
 // row until a real push feature exists — hiding is the lower-risk pre-launch
-// choice. The implementer will delete the row + its local state.
+// choice. FIXED 2026-06-11 (commit `5192c6c`): the implementer deleted the
+// row, its local state, and the now-unused Bell + Switch UI imports.
 //
-// INTENDED CONTRACT (post-removal):
+// POST-FIX CONTRACT (pinned by the guards below):
 //   - ProfileScreen.tsx no longer declares `notificationsEnabled` /
 //     `setNotificationsEnabled` local state.
 //   - The "الإشعارات" (Notifications) row + its <Switch> bound to
@@ -27,15 +28,13 @@
 // AdminScheduleSettingsScreen.optimisticRollback.test.tsx) and gives a
 // durable, unambiguous contract for "the dead toggle is gone".
 //
-// `test.failing` per the Bugs Policy: TODAY the source still declares
-// `notificationsEnabled` and renders the الإشعارات Switch row, so each
-// assertion throws. When the implementer removes the row + state and the
-// bodies stop throwing, Jest reports "Failing test passed" → the tester drops
-// `.failing`.
+// `.failing` was DROPPED 2026-06-11 once the fix landed (Bugs Policy step 5).
+// These are now durable regression guards — if a future change reintroduces
+// `notificationsEnabled` or the الإشعارات row, the guards turn red.
 //
-// NOTE (checked 2026-06-11): no existing test references `notificationsEnabled`,
-// `الإشعارات`, or the notifications Switch — so removing the row keeps the
-// suite green with no other test edits needed.
+// NOTE (checked 2026-06-11): no other test referenced `notificationsEnabled`,
+// `الإشعارات`, or the notifications Switch — removal kept the suite green
+// with no other test edits needed.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -58,7 +57,7 @@ describe('ProfileScreen — C-STORE-06: dead notifications toggle removed', () =
     expect(src.includes('إعدادات الحساب')).toBe(true);
   });
 
-  test.failing(
+  test(
     'C-STORE-06: ProfileScreen declares no notificationsEnabled / setNotificationsEnabled local state',
     () => {
       const src = readSrc();
@@ -69,7 +68,7 @@ describe('ProfileScreen — C-STORE-06: dead notifications toggle removed', () =
     }
   );
 
-  test.failing(
+  test(
     'C-STORE-06: the الإشعارات (Notifications) Switch row is gone from the Account Settings card',
     () => {
       const src = readSrc();
