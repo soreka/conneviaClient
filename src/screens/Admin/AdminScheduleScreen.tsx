@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Clock, Users, X, Edit2, Trash2, Plus } from 'lucide-react-native';
+import { Clock, Users, X, Edit2, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { AdminScheduleHeader } from './components/AdminScheduleHeader';
 import { EditBookingModal } from './components/EditBookingModal';
 import { AddBookingModal } from './components/AddBookingModal';
@@ -124,7 +124,25 @@ export const AdminScheduleScreen = () => {
 
   // Date range for API query
   const today = useMemo(() => new Date(), []);
-  const startOfWeek = useMemo(() => getStartOfWeek(today, 0), [today]);
+
+  // Admin week navigation. Unlike the customer Schedule tab (bounded 0..1 to
+  // the 14-day booking horizon — SCHED-NAV-01), the admin manages the whole
+  // schedule, so she can page BACK through past weeks (history/attendance) and
+  // FORWARD through future weeks (planning). Bounded to a generous ±12-week
+  // window so the arrows never page into an unbounded empty range.
+  const MIN_WEEK_OFFSET = -12; // ~3 months back
+  const MAX_WEEK_OFFSET = 12; // ~3 months forward
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  // Anchor on the current week's start, then shift ±7 days per offset. Mirrors
+  // the customer screen so the query window is byte-for-byte the same shape,
+  // just with a wider offset range.
+  const baseStartOfWeek = useMemo(() => getStartOfWeek(today, 0), [today]);
+  const startOfWeek = useMemo(() => {
+    const d = new Date(baseStartOfWeek);
+    d.setDate(baseStartOfWeek.getDate() + 7 * weekOffset);
+    return d;
+  }, [baseStartOfWeek, weekOffset]);
   const endOfWeek = useMemo(() => {
     const end = new Date(startOfWeek);
     end.setDate(end.getDate() + 6);
@@ -269,13 +287,27 @@ export const AdminScheduleScreen = () => {
 
   const weekDays = useMemo(() => getWeekDays(startOfWeek), [startOfWeek]);
 
+  // Today's slot within the CURRENT week (independent of the viewed offset) —
+  // used to highlight/reselect today when the admin is on (or returns to) the
+  // current week. On any other week today isn't present, so callers select the
+  // first day instead.
   const todayIndex = useMemo(() => {
-    const index = weekDays.findIndex((day) => isSameDay(day, today));
+    const currentWeekDays = getWeekDays(baseStartOfWeek);
+    const index = currentWeekDays.findIndex((day) => isSameDay(day, today));
     return index >= 0 ? index : 0;
-  }, [weekDays, today]);
+  }, [baseStartOfWeek, today]);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(todayIndex);
   const selectedDate = weekDays[selectedDayIndex];
+
+  // Switching weeks resets the selected day: today's index on the current week
+  // (offset 0), the first day otherwise (today isn't in another week's range).
+  const goToWeek = (offset: number) => {
+    const clamped = Math.max(MIN_WEEK_OFFSET, Math.min(MAX_WEEK_OFFSET, offset));
+    if (clamped === weekOffset) return;
+    setWeekOffset(clamped);
+    setSelectedDayIndex(clamped === 0 ? todayIndex : 0);
+  };
 
   const daysWithSlots = useMemo((): DayItem[] => {
     return weekDays.map((date) => ({
@@ -846,6 +878,93 @@ export const AdminScheduleScreen = () => {
     );
   };
 
+  // Week navigation bar (RTL): the LEFT chevron advances to the NEXT week
+  // (future sits to the left in RTL), the RIGHT chevron goes to the PREVIOUS
+  // week. Both hide at their respective bounds so the offset stays within
+  // [MIN_WEEK_OFFSET, MAX_WEEK_OFFSET].
+  const renderWeekNav = () => {
+    const relativeLabel =
+      weekOffset === 0
+        ? 'هذا الأسبوع'
+        : weekOffset === 1
+        ? 'الأسبوع القادم'
+        : weekOffset === -1
+        ? 'الأسبوع الماضي'
+        : null;
+    const rangeLabel = `${formatArabicDate(weekDays[0])} - ${formatArabicDate(weekDays[6])}`;
+
+    return (
+      <View
+        style={{
+          flexDirection: 'row-reverse',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#ffffff',
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+        }}
+      >
+        {/* Previous week (past) — right side in RTL */}
+        <View style={{ width: 44, alignItems: 'flex-start' }}>
+          {weekOffset > MIN_WEEK_OFFSET && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الأسبوع السابق"
+              onPress={() => goToWeek(weekOffset - 1)}
+              hitSlop={8}
+              style={{
+                width: 44,
+                height: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 22,
+                backgroundColor: '#f3f4f6',
+              }}
+            >
+              <ChevronRight size={22} color="#8b5cf6" />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Center: relative week label + explicit date range */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>
+            {relativeLabel ?? rangeLabel}
+          </Text>
+          {relativeLabel && (
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+              {rangeLabel}
+            </Text>
+          )}
+        </View>
+
+        {/* Next week (future) — left side in RTL */}
+        <View style={{ width: 44, alignItems: 'flex-end' }}>
+          {weekOffset < MAX_WEEK_OFFSET && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الأسبوع التالي"
+              onPress={() => goToWeek(weekOffset + 1)}
+              hitSlop={8}
+              style={{
+                width: 44,
+                height: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 22,
+                backgroundColor: '#f3f4f6',
+              }}
+            >
+              <ChevronLeft size={22} color="#8b5cf6" />
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   const handleSettingsPress = () => {
     navigation.navigate('AdminScheduleSettings');
   };
@@ -854,6 +973,9 @@ export const AdminScheduleScreen = () => {
     <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       {/* Header */}
       <AdminScheduleHeader onSettingsPress={handleSettingsPress} />
+
+      {/* Week Navigation (previous / current / next weeks) */}
+      {renderWeekNav()}
 
       {/* Day Tabs */}
       <WeekDayTabs
