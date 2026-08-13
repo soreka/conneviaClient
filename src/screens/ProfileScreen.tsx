@@ -392,18 +392,13 @@ export const ProfileScreen = () => {
                   <Text className="text-lg font-bold text-[#666666] text-right mr-2">استخدام الجلسات</Text>
                 </View>
 
-                {/* Monthly usage */}
-                <View className="flex-row-reverse justify-between items-center mb-2">
-                  <Text className="text-sm text-[#8C8C8C]">الجلسات الشهرية:</Text>
-                  <Text className="text-lg font-bold text-[#666666]">
-                    {usage.monthlyUsed} / {usage.monthlyLimit}
-                  </Text>
-                </View>
-
+                {/* CREDITS-07: the accumulating balance replaces the monthly
+                    quota readout. No "شهرياً" framing — unused classes carry
+                    forward and outlive the subscription. */}
                 <View className="flex-row-reverse justify-between items-center mb-4">
-                  <Text className="text-sm text-[#8C8C8C]">المتبقي شهرياً:</Text>
-                  <Text className={`text-lg font-bold ${usage.monthlyLeft > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {usage.monthlyLeft} جلسات
+                  <Text className="text-sm text-[#8C8C8C]">رصيد الحصص:</Text>
+                  <Text className={`text-lg font-bold ${usage.credits > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {usage.credits} جلسات
                   </Text>
                 </View>
 

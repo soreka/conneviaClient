@@ -7,9 +7,9 @@ interface UsageData {
   weeklyLimit: number;
   weeklyUsed: number;
   weeklyLeft: number;
-  monthlyLimit: number;
-  monthlyUsed: number;
-  monthlyLeft: number;
+  /** CREDITS-07: accumulating class balance. Not scoped to a month. */
+  credits: number;
+  hasActiveSubscription?: boolean;
 }
 
 interface UsageCardProps {
@@ -43,7 +43,14 @@ export const UsageCard: React.FC<UsageCardProps> = ({
   hasSubscription = true,
   onViewPlansPress,
 }) => {
-  if (!hasSubscription) {
+  // CREDITS-07: credits outlive the subscription, so a member with a positive
+  // balance sees their real usage card even after their membership lapses —
+  // they can still book, and telling them "no active subscription" while the
+  // booking screen accepts them would be a contradiction. The upsell state is
+  // reserved for members who genuinely have nothing left to use.
+  const hasCredits = (usage?.credits ?? 0) > 0;
+
+  if (!hasSubscription && !hasCredits) {
     return (
       <View
         className="bg-white rounded-2xl mx-5 mt-4 p-4"
@@ -89,11 +96,16 @@ export const UsageCard: React.FC<UsageCardProps> = ({
     return 'وصلتِ للحد الأسبوعي (3 حصص) 💪';
   };
 
-  const getMonthlyMessage = () => {
-    if (usage.monthlyLeft === 0) {
-      return 'انتهت حصص هذا الشهر';
+  // No "this month" framing anywhere: the balance is not monthly. It carries
+  // forward on renewal and stays usable after a subscription ends.
+  const getCreditsMessage = () => {
+    if (usage.credits === 0) {
+      return 'لا توجد حصص متبقية';
     }
-    return `تبقّى ${usage.monthlyLeft} حصص من اشتراكك الشهري`;
+    if (usage.hasActiveSubscription === false) {
+      return `لديكِ ${usage.credits} حصص متبقية من اشتراك سابق`;
+    }
+    return `لديكِ ${usage.credits} حصص متبقية`;
   };
 
   return (
@@ -133,21 +145,23 @@ export const UsageCard: React.FC<UsageCardProps> = ({
         </Text>
       </View>
 
-      {/* Monthly Usage */}
+      {/* Credit balance.
+          Rendered as a plain count, NOT a progress bar: a bar needs a
+          denominator, and an accumulating balance has none — a member can hold
+          more classes than any single plan grants. */}
       <View>
-        <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-sm font-semibold text-gray-700">
-            {usage.monthlyUsed} / {usage.monthlyLimit}
+        <View className="flex-row items-center justify-between mb-1">
+          <Text
+            className={`text-2xl font-bold ${usage.credits > 0 ? 'text-green-600' : 'text-red-600'}`}
+          >
+            {usage.credits}
           </Text>
-          <Text className="text-sm text-gray-600">الحصص الشهرية</Text>
+          <Text className="text-sm text-gray-600">رصيد الحصص</Text>
         </View>
-        <ProgressBar 
-          used={usage.monthlyUsed} 
-          total={usage.monthlyLimit}
-          color={usage.monthlyLeft > 0 ? '#10B981' : '#EF4444'}
-        />
-        <Text className={`text-xs mt-1.5 text-right ${usage.monthlyLeft > 0 ? 'text-green-600' : 'text-red-600'}`}>
-          {getMonthlyMessage()}
+        <Text
+          className={`text-xs mt-0.5 text-right ${usage.credits > 0 ? 'text-green-600' : 'text-red-600'}`}
+        >
+          {getCreditsMessage()}
         </Text>
       </View>
     </View>

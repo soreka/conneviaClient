@@ -196,12 +196,26 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
     }
   );
 
+  // CREDITS-07: reworded. Credits are a balance the member OWNS and which
+  // outlives any subscription, so the old "in your subscription" phrasing
+  // misdescribed the refusal — a member can be out of classes while holding a
+  // perfectly valid subscription, and vice versa.
   test(
-    'ARABIC-ERR-01: NO_CREDITS → "لا يوجد رصيد كافٍ في اشتراكك"',
+    'ARABIC-ERR-01: NO_CREDITS → "لا توجد حصص متبقية في رصيدك"',
     () => {
       const fn = loadHelper();
       expect(fn(rtkError({ code: 'NO_CREDITS' }), FALLBACK)).toBe(
-        'لا يوجد رصيد كافٍ في اشتراكك'
+        'لا توجد حصص متبقية في رصيدك'
+      );
+    }
+  );
+
+  test(
+    'CREDITS-07: INSUFFICIENT_CREDITS → Arabic, not the raw code',
+    () => {
+      const fn = loadHelper();
+      expect(fn(rtkError({ code: 'INSUFFICIENT_CREDITS' }), FALLBACK)).toBe(
+        'الرصيد غير كافٍ لهذه العملية'
       );
     }
   );

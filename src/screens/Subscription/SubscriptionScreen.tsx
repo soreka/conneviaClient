@@ -265,17 +265,17 @@ export const SubscriptionScreen = () => {
           </AnimatedCard>
         )}
 
-        {/* Monthly usage card */}
-        {usage && current?.status === 'active' && (() => {
+        {/* Usage card.
+            CREDITS-07: shown whenever usage exists — NOT gated on an active
+            subscription. A member whose membership lapsed with classes still
+            banked can keep booking, so hiding their balance would leave them
+            unable to see what they still own. */}
+        {usage && (() => {
           // C-NET-05 / C-UX-10: guard the progress-bar width math against a 0
           // (or undefined) denominator so a missing/zero limit renders as 0%
-          // (not 'NaN%'). Mirrors the safe pattern in WeeklyUsageCard /
-          // Dashboard UsageCard: compute the raw percent with a `limit > 0`
-          // ternary FIRST, then clamp with Math.min(percent, 100) so the
-          // division never reaches a 0 (or undefined) denominator.
-          const monthlyRaw =
-            usage.monthlyLimit > 0 ? (usage.monthlyUsed / usage.monthlyLimit) * 100 : 0;
-          const monthlyPercent = Math.min(monthlyRaw, 100);
+          // (not 'NaN%'). Compute the raw percent with a `limit > 0` ternary
+          // FIRST, then clamp with Math.min(percent, 100) so the division never
+          // reaches a 0 (or undefined) denominator.
           const weeklyRaw =
             usage.weeklyLimit > 0 ? (usage.weeklyUsed / usage.weeklyLimit) * 100 : 0;
           const weeklyPercent = Math.min(weeklyRaw, 100);
@@ -286,22 +286,21 @@ export const SubscriptionScreen = () => {
                   استخدام الجلسات
                 </Text>
 
-                {/* Monthly usage */}
+                {/* Credit balance — a count, not a bar. An accumulating
+                    balance has no denominator to fill. */}
                 <View className="mb-4">
-                  <View className="flex-row-reverse justify-between mb-1">
-                    <Text className="text-sm text-purple-700 text-right">الجلسات الشهرية</Text>
-                    <Text className="text-sm text-purple-900 font-bold">
-                      {usage.monthlyUsed} / {usage.monthlyLimit}
+                  <View className="flex-row-reverse justify-between items-center mb-1">
+                    <Text className="text-sm text-purple-700 text-right">رصيد الحصص</Text>
+                    <Text className="text-2xl text-purple-900 font-bold">
+                      {usage.credits}
                     </Text>
                   </View>
-                  <View className="h-3 bg-purple-200 rounded-full overflow-hidden">
-                    <View
-                      className="h-full bg-purple-600 rounded-full"
-                      style={{ width: `${monthlyPercent}%` }}
-                    />
-                  </View>
                   <Text className="text-xs text-purple-500 text-right mt-1">
-                    متبقي: {usage.monthlyLeft} جلسات
+                    {usage.credits === 0
+                      ? 'لا توجد حصص متبقية'
+                      : usage.hasActiveSubscription === false
+                        ? 'حصص متبقية من اشتراك سابق — صالحة للحجز'
+                        : 'الحصص غير المستخدمة تنتقل معكِ للشهر التالي'}
                   </Text>
                 </View>
 

@@ -41,9 +41,15 @@ const ARABIC_RE = /[؀-ۿ]/;
  * generic fallback" — wording free.
  */
 const CODE_MAP: Record<string, string> = {
+  // CREDITS-07: reworded — credits are no longer "in your subscription". They
+  // are a balance the member owns that outlives any subscription, so tying the
+  // message to a subscription would misdescribe why they were refused.
+  NO_CREDITS: 'لا توجد حصص متبقية في رصيدك',
+  INSUFFICIENT_CREDITS: 'الرصيد غير كافٍ لهذه العملية',
+  // Retained: the shipped TestFlight build can still receive these from a
+  // server that has not been redeployed yet. Harmless once it has.
   NO_SUBSCRIPTION: 'لا يوجد اشتراك نشط',
   SESSION_BEFORE_SUB_START: 'هذه الحصة قبل بداية اشتراكك',
-  NO_CREDITS: 'لا يوجد رصيد كافٍ في اشتراكك',
   WEEKLY_CAP_REACHED: 'لقد وصلت إلى الحد الأسبوعي للحجوزات',
   SESSION_OUTSIDE_SUB_RANGE: 'هذه الحصة خارج فترة اشتراكك',
   UNKNOWN_PLAN_LIMIT: 'تعذّر تحديد حد الباقة، تواصلي مع الإدارة',

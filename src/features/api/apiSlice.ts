@@ -564,21 +564,31 @@ export const apiSlice = createApi({
       providesTags: ['MySubscription'],
     }),
 
-    // Get monthly + weekly usage
+    // Get credit balance + weekly usage
     getMySubscriptionUsage: builder.query<
       { ok: boolean; usage: {
-        // Weekly (global cap of 3)
+        // CREDITS-07: the authoritative entitlement. Classes ACCUMULATE — this
+        // balance carries across renewals and survives a subscription ending,
+        // so it is not scoped to a month and must never be rendered as "x of y
+        // this month".
+        credits: number;
+        // False when no subscription is currently active. The member may STILL
+        // have credits and still book — this flag is membership context for
+        // copy and upsell, never a booking gate.
+        hasActiveSubscription: boolean;
+        // Weekly (global cap of 3) — enforced on top of the balance.
         weekStartISO: string;
         weekEndISO: string;
         weeklyLimit: number; // Always 3
         weeklyUsed: number;
         weeklyLeft: number;
-        // Monthly (based on subscription)
-        subStartISO: string;
-        subEndISO: string;
-        monthlyLimit: number; // 4 or 8
-        monthlyUsed: number;
-        monthlyLeft: number;
+        // DEPRECATED (server CREDITS-05): the old window-quota model. Nullable
+        // and retained only for the already-shipped build. Do not add readers.
+        subStartISO: string | null;
+        subEndISO: string | null;
+        monthlyLimit: number | null;
+        monthlyUsed: number | null;
+        monthlyLeft: number | null;
       } | null; message?: string },
       void
     >({
