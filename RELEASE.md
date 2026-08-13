@@ -183,6 +183,52 @@ Rules for account B:
 
 ---
 
+## 5b. Shipping a fix WITHOUT a build (EAS Update)
+
+Most fixes are JavaScript only, and JavaScript can be pushed over the air to apps that are
+already installed. The member reopens the app and has the fix — no build, no store review.
+
+```powershell
+cd E:\Users\Ahmed\connevia-app\connevia
+npx eas-cli update --branch production --message "fix: whatsapp button"
+```
+
+Branch names match the build channels in `eas.json`: `development`, `preview`, `production`.
+An update published to `production` reaches builds made with the `production` profile.
+
+### What can and cannot go over the air
+
+**Over the air:** React components, screens, business logic, styles, Arabic copy, images
+imported from JS. Practically all day-to-day work.
+
+**Needs a new build:** anything native — adding a library with native code, changing
+permissions, editing the native parts of `app.json` (bundle id, scheme, plugins, icons), or
+upgrading the Expo SDK.
+
+`runtimeVersion` uses the **`fingerprint`** policy, which computes a hash of the native layer.
+That is the guardrail: change anything native and the fingerprint changes, so the update simply
+does not reach older builds instead of reaching them and crashing. You cannot ship an
+incompatible update by accident. The cost is that after any native change you must build and
+distribute again — which was true anyway.
+
+### Before this works
+
+A build must have been made **with `expo-updates` in it**. Builds cut before 2026-08-13 —
+including iOS `1.0.0 (2)` and the Android build of the same date — **cannot receive updates**.
+The first build after this change is the one that gains the capability.
+
+### Checking what is live
+
+```powershell
+npx eas-cli update:list --branch production
+npx eas-cli channel:view production
+```
+
+Apple explicitly permits this (guideline 3.3.2 allows JavaScript changes through interpreters
+like React Native) provided the update does not change what the app fundamentally does.
+
+---
+
 ## 6. Traps
 
 ### 6.1 Always run EAS from `connevia\`, never the workspace root

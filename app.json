@@ -35,6 +35,13 @@
       "android"
     ],
     "scheme": "hayazmiro-studio",
+    "updates": {
+      "url": "https://u.expo.dev/743f8569-e0da-4f92-aa3c-004fecc4aeab",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "extra": {
       "EXPO_PUBLIC_AUTH0_DOMAIN": "dev-ry4tgo51va623cn8.eu.auth0.com",
       "EXPO_PUBLIC_AUTH0_CLIENT_ID": "1OB04BvCaMTJoASnjVQgOp98lyVpSF5T",
