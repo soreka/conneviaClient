@@ -14,7 +14,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.hayazmiro.studio",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "usesAppleSignIn": true,
       
       "infoPlist": {
