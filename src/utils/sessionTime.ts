@@ -1,49 +1,33 @@
 /**
- * Session time utilities for past session detection
- * Uses Asia/Jerusalem timezone for accurate local time comparison
+ * Session time utilities for past session detection.
+ *
+ * HERMES CONSTRAINT (SESSTIME-HERMES-01): the comparison must be pure epoch
+ * math. The previous implementation round-tripped through
+ * `toLocaleString('en-US', { timeZone })` + `new Date(<locale string>)` —
+ * Node (Jest) parses that string, but Hermes on real devices returns
+ * Invalid Date, so every comparison was false and past sessions rendered as
+ * reservable ON DEVICE while all tests stayed green. Comparing instants
+ * needs no timezone at all: an ISO timestamp is absolute.
  */
 
-const TIMEZONE = 'Asia/Jerusalem';
-
 /**
- * Get current time in Asia/Jerusalem timezone as a Date object
- */
-function getNowInJerusalem(): Date {
-  // Get current time string in Jerusalem timezone
-  const nowStr = new Date().toLocaleString('en-US', { timeZone: TIMEZONE });
-  return new Date(nowStr);
-}
-
-/**
- * Convert an ISO date string to Jerusalem local time Date object
- */
-function toJerusalemTime(isoString: string | Date): Date {
-  const date = typeof isoString === 'string' ? new Date(isoString) : isoString;
-  const localStr = date.toLocaleString('en-US', { timeZone: TIMEZONE });
-  return new Date(localStr);
-}
-
-/**
- * Check if a session start time is in the past relative to Asia/Jerusalem timezone
- * 
+ * Check if a session start time is in the past (the session already started).
+ *
  * @param startsAtISO - ISO date string or Date object of session start time
  * @returns true if the session has already started
  */
 export function isSessionInPast(startsAtISO: string | Date): boolean {
-  const sessionTime = toJerusalemTime(startsAtISO);
-  const now = getNowInJerusalem();
-  
-  const isPast = sessionTime.getTime() <= now.getTime();
-  
-  // Dev logging
-  if (__DEV__ && isPast) {
-    console.log('[sessionTime] Past session detected:', {
-      sessionTime: sessionTime.toISOString(),
-      now: now.toISOString(),
-    });
-  }
-  
-  return isPast;
+  const sessionMs =
+    typeof startsAtISO === 'string'
+      ? Date.parse(startsAtISO) // ISO 8601 — parses identically in Hermes and Node
+      : startsAtISO.getTime();
+
+  // Unparseable input → treat as NOT past. Failing open keeps a weird-but-
+  // bookable session bookable (the server past-guard is the backstop);
+  // failing closed would dead-lock a valid card behind a formatting quirk.
+  if (Number.isNaN(sessionMs)) return false;
+
+  return sessionMs <= Date.now();
 }
 
 /**
