@@ -27,12 +27,11 @@ const formatTime = (date: Date): string => {
   return `${hours}:${minutes}`;
 };
 
-// Format HH:mm to Arabic display (12-hour with AM/PM)
+// Display HH:mm as a 24-hour clock — matches the rest of the app; the old
+// 12-hour ص/م rendering confused users.
 const formatDisplayTime = (timeStr: string): string => {
   const [hours, minutes] = timeStr.split(':').map(Number);
-  const period = hours >= 12 ? 'م' : 'ص';
-  const hour12 = hours % 12 || 12;
-  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
 export const TimePickerField: React.FC<TimePickerFieldProps> = ({

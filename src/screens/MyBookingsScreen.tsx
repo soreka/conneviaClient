@@ -26,18 +26,13 @@ const ARABIC_DAY_NAMES = [
   'السبت',
 ];
 
-// Format time to Arabic style (e.g., "04:00 مساءً")
+// Format time in 24-hour style (e.g., "16:00") — the whole app renders
+// 24-hour clocks; am/pm wording confused users.
 const formatArabicTime = (isoString: string): string => {
   const date = new Date(isoString);
-  const hours = date.getHours();
+  const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
-  
-  const isPM = hours >= 12;
-  const hour12 = hours % 12 || 12;
-  const hourStr = hour12.toString().padStart(2, '0');
-  const period = isPM ? 'مساءً' : 'صباحاً';
-  
-  return `${hourStr}:${minutes} ${period}`;
+  return `${hours}:${minutes}`;
 };
 
 // Format time range for display

@@ -82,13 +82,13 @@ export const NextBookingCard: React.FC<NextBookingCardProps> = ({
     });
   };
 
+  // 24-hour clock with Western digits — matches the rest of the app.
+  // (toLocaleTimeString('ar-EG') would render ١٢-hour with ص/م.)
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
-    return date.toLocaleTimeString('ar-EG', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   const badge = booking ? STATUS_BADGE[booking.status] || STATUS_BADGE.booked : null;
