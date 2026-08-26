@@ -32,6 +32,7 @@ import {
 } from './components';
 import { BedIcon } from '../../components/icons/BedIcon';
 import { arabicServerError } from '../../utils/serverErrors';
+import { isSessionInPast, getPastSessionAlertMessage } from '../../utils/sessionTime';
 
 // Temporary: Subscription check (hardcoded for now)
 const hasActiveSubscription = true;
@@ -339,6 +340,15 @@ export const BookingWizardScreen: React.FC = () => {
       !selectedBedNumber ||
       (!selectedSession && !sessionDetailsData?.session)
     ) {
+      return;
+    }
+
+    // A session that already started can never be booked — tell the user
+    // immediately instead of round-tripping to the server's SESSION_IN_PAST
+    // rejection (which is still the backstop if the clock rolls over mid-flow).
+    const resolvedSession = selectedSession ?? sessionDetailsData?.session;
+    if (resolvedSession && isSessionInPast(resolvedSession.startsAt)) {
+      Alert.alert('خطأ', getPastSessionAlertMessage());
       return;
     }
 

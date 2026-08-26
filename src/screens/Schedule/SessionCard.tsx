@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Clock, Users } from 'lucide-react-native';
 import { Card, Badge, Button, Progress } from '../../components/UI';
 import { formatTime, getEndTime } from '../../utils/dates';
+import { isSessionInPast, getPastSessionLabel } from '../../utils/sessionTime';
 
 interface Session {
   id: string;
@@ -30,6 +31,9 @@ export const SessionCard: React.FC<SessionCardProps> = ({
 }) => {
   const availableSeats = session.availableSeats ?? (session.capacity - session.bookedCount);
   const isFull = availableSeats <= 0;
+  // A session that already started is never reservable — render it like the
+  // admin screen does: "ended" badge, card press disabled, no book button.
+  const isPast = isSessionInPast(session.startsAt);
   const startTime = formatTime(session.startsAt);
   const endTime = getEndTime(session.startsAt, session.durationMin);
   const timeRange = `${startTime} - ${endTime}`;
@@ -53,7 +57,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   const fractionText = `${availableSeats}/${session.capacity}`;
 
   const handleCardPress = () => {
-    if (!isFull) {
+    if (!isFull && !isPast) {
       onPress();
     }
   };
@@ -66,8 +70,9 @@ export const SessionCard: React.FC<SessionCardProps> = ({
     <Card className="mx-4 mb-3">
       <Pressable
         onPress={handleCardPress}
-        disabled={isFull}
+        disabled={isFull || isPast}
         className="p-4"
+        style={isPast ? { opacity: 0.55 } : undefined}
       >
         <View className="flex-row-reverse items-center justify-between mb-3">
           <View className="flex-row-reverse items-center">
@@ -76,8 +81,8 @@ export const SessionCard: React.FC<SessionCardProps> = ({
               {timeRange}
             </Text>
           </View>
-          <Badge variant={isFull ? 'destructive' : 'success'}>
-            {isFull ? 'ممتلئ' : 'متاح'}
+          <Badge variant={isPast ? 'secondary' : isFull ? 'destructive' : 'success'}>
+            {isPast ? getPastSessionLabel() : isFull ? 'ممتلئ' : 'متاح'}
           </Badge>
         </View>
 
@@ -108,7 +113,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
           />
         </View>
 
-        {!isFull && (
+        {!isFull && !isPast && (
           <Button
             onPress={handleBookPress}
             className="w-full"

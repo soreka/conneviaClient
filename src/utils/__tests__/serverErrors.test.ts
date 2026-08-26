@@ -454,4 +454,48 @@ describe('ARABIC-ERR-01 — arabicServerError resolution', () => {
       }
     }
   );
+
+  // ===================================================================
+  // PAST-SESSION-ERR — codes that arrive under the `error` field
+  // ===================================================================
+  // The past-session booking guard responds
+  //   `{ ok:false, error:'SESSION_IN_PAST', message:'لا يمكن الحجز في حصة انتهت' }`
+  // — the CODE lives in `error`, not `code`/`reason`. The resolver must map it
+  // (via the code map, or by using the Arabic `message`) instead of falling
+  // back to the generic per-call message, which is what the user reported
+  // seeing at the confirm step.
+  test(
+    'PAST-SESSION-ERR: SESSION_IN_PAST under the `error` field resolves to the specific Arabic past-session message (RTK shape)',
+    () => {
+      const fn = loadHelper();
+      const out = fn(
+        rtkError({ ok: false, error: 'SESSION_IN_PAST', message: 'لا يمكن الحجز في حصة انتهت' }),
+        FALLBACK
+      );
+      expect(out).toBe('لا يمكن الحجز في حصة انتهت');
+    }
+  );
+
+  test(
+    'PAST-SESSION-ERR: SESSION_IN_PAST resolves even WITHOUT the Arabic message field (axios shape)',
+    () => {
+      const fn = loadHelper();
+      const out = fn(axiosError({ error: 'SESSION_IN_PAST' }), FALLBACK);
+      expect(ARABIC_RE.test(out)).toBe(true);
+      expect(out).not.toBe(FALLBACK);
+      expect(out).not.toContain('SESSION_IN_PAST');
+    }
+  );
+
+  test(
+    'PAST-SESSION-ERR: an UNKNOWN code under `error` still uses an Arabic `message` from the same payload instead of the fallback',
+    () => {
+      const fn = loadHelper();
+      const out = fn(
+        rtkError({ error: 'SOME_FUTURE_CODE', message: 'رسالة عربية من الخادم' }),
+        FALLBACK
+      );
+      expect(out).toBe('رسالة عربية من الخادم');
+    }
+  );
 });

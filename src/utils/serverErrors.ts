@@ -64,6 +64,7 @@ const CODE_MAP: Record<string, string> = {
   INVALID_PLAN: 'الباقة المختارة غير صالحة',
   VALIDATION_ERROR: 'تحقّقي من البيانات المُدخلة وحاولي مرة أخرى',
   EMAIL_IN_USE: 'هذا البريد الإلكتروني مستخدم بالفعل',
+  SESSION_IN_PAST: 'لا يمكن الحجز في حصة انتهت',
 };
 
 /**
@@ -140,8 +141,13 @@ export function arabicServerError(err: unknown, fallback: string): string {
   const payload = extractPayload(err);
 
   // ---- Tier 1: known code / reason ----
+  // Some routes put the CODE in the `error` field itself (e.g. the past-session
+  // guard returns `{ error: 'SESSION_IN_PAST', message: '<Arabic>' }`), so the
+  // `error` field participates in the code lookup too. Safe: real English
+  // sentences never collide with SCREAMING_SNAKE code keys.
   if (payload) {
-    const code = asString(payload.code) ?? asString(payload.reason);
+    const code =
+      asString(payload.code) ?? asString(payload.reason) ?? asString(payload.error);
     if (code && CODE_MAP[code]) {
       return CODE_MAP[code];
     }
@@ -170,6 +176,15 @@ export function arabicServerError(err: unknown, fallback: string): string {
     // ---- Tier 3: server message already contains Arabic → passthrough ----
     if (ARABIC_RE.test(rawMessage)) {
       return rawMessage;
+    }
+  }
+
+  // ---- Tier 3b: `error` was an unknown code/English string, but the payload
+  // also carries an Arabic `message` (routes that send both) → use it. ----
+  if (payload) {
+    const secondary = asString(payload.message);
+    if (secondary && secondary !== rawMessage && ARABIC_RE.test(secondary)) {
+      return secondary;
     }
   }
 
