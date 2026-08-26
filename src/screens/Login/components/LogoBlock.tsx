@@ -18,7 +18,7 @@ export const LogoBlock: React.FC = () => {
         />
       </View>
       <Text className="text-3xl font-san-serif  font-bold text-[#666666] text-center mb-1">
-        نادي البيلاتس
+        استوديو هيازميرو
       </Text>
       <Text className="text-m text-[#8C8C8C] text-center">
         رحلتك نحو صحة أفضل تبدأ هنا
