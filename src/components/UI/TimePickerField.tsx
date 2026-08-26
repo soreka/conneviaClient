@@ -86,13 +86,15 @@ export const TimePickerField: React.FC<TimePickerFieldProps> = ({
                   <Text className="text-purple-600 font-semibold">تم</Text>
                 </TouchableOpacity>
               </View>
+              {/* en_GB locale forces a 24-hour spinner (no AM/PM column); the
+                  spinner shows only digits, so no English text is visible. */}
               <DateTimePicker
                 value={parseTime(value)}
                 mode="time"
                 display="spinner"
                 onChange={handleChange}
                 minuteInterval={5}
-                locale="ar"
+                locale="en_GB"
               />
             </View>
           )}
@@ -103,6 +105,7 @@ export const TimePickerField: React.FC<TimePickerFieldProps> = ({
               display="default"
               onChange={handleChange}
               minuteInterval={5}
+              is24Hour={true}
             />
           )}
         </>

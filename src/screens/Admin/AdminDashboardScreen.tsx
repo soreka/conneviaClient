@@ -68,7 +68,11 @@ interface Notification {
 // ============================================
 function formatTime(isoString: string): string {
   const date = new Date(isoString);
-  return date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: false });
+  // Manual HH:mm — 24-hour with Western digits, matching the rest of the app
+  // ('ar-EG' rendered Eastern Arabic digits ٠١٢ even with hour12:false).
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 // ============================================
